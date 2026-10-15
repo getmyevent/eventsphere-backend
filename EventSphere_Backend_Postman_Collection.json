@@ -1,0 +1,2887 @@
+{
+  "info": {
+    "_postman_id": "3398b77c-7c71-41cb-bacb-e0083c905b3f",
+    "name": "EventSphere Backend API (Phases 2 - 8)",
+    "description": "Comprehensive Postman test collection for EventSphere backend covering Phases 2 through 8:\n- Actuator & Health (Phase 2)\n- Authentication & Security (Phase 4)\n- Core Exhibitor Functionality (Phase 5)\n- Attendee Directory, Connections & Privacy Enforcement (Phase 6)\n- Interactive Agenda, Live Sessions, Q&A & Polls (Phase 7)\n- Organizer Console & Event Operations (Phase 8)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "tokenHari",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenSantosh",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenExhibitor",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdProductId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdLeadId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "activeConnectionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdQuestionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenOrganizer",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "createdSessionId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health & Infrastructure (Phase 2)",
+      "item": [
+        {
+          "name": "0.1 Spring Boot Actuator Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Checks if the Spring Boot service and database connection are UP."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Application is UP', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('UP');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Authentication & Security (Phase 4)",
+      "item": [
+        {
+          "name": "1.1 Login Delegate 1 (Hari Gupta)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"MPSS26\",\n  \"mobile\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "access"
+              ]
+            },
+            "description": "Authenticates Hari Gupta via registered mobile number, extracts JWT token and sets tokenHari variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Token received', function () {",
+                  "    pm.expect(jsonData.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('tokenHari', jsonData.token);",
+                  "});",
+                  "pm.test('User details returned', function () {",
+                  "    pm.expect(jsonData.user.name).to.eql('Hari Gupta');",
+                  "    pm.expect(jsonData.user.role).to.eql('ROLE_DELEGATE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Login Delegate 2 (Santosh Kumar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"MPSS26\",\n  \"mobile\": \"9713722841\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "access"
+              ]
+            },
+            "description": "Authenticates Santosh Kumar, extracts JWT token and sets tokenSantosh variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Token received', function () {",
+                  "    pm.expect(jsonData.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('tokenSantosh', jsonData.token);",
+                  "});",
+                  "pm.test('User details returned', function () {",
+                  "    pm.expect(jsonData.user.name).to.eql('Santosh Kumar');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Login Exhibitor Staff (Truechip)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"MPSS26\",\n  \"mobile\": \"9876543211\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "access"
+              ]
+            },
+            "description": "Authenticates Truechip Exhibitor Staff, extracts JWT token with exhibitorId claim and sets tokenExhibitor variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Exhibitor token received with booth info', function () {",
+                  "    pm.expect(jsonData.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('tokenExhibitor', jsonData.token);",
+                  "    pm.expect(jsonData.user.role).to.eql('ROLE_EXHIBITOR');",
+                  "    pm.expect(jsonData.user.exhibitorId).to.eql('exh-truechip');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Login Organizer Staff (Operations Staff 01)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"MPSS26\",\n  \"mobile\": \"9876543212\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "access"
+              ]
+            },
+            "description": "Authenticates Organizer Staff via mobile 9876543212, extracts JWT token and sets tokenOrganizer variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Organizer token received with ROLE_ORGANIZER', function () {",
+                  "    pm.expect(jsonData.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('tokenOrganizer', jsonData.token);",
+                  "    pm.expect(jsonData.user.role).to.eql('ROLE_ORGANIZER');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Login Unregistered Mobile (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"MPSS26\",\n  \"mobile\": \"9999999999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "access"
+              ]
+            },
+            "description": "Verifies that an unregistered mobile number returns a structured 400 Bad Request error."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Structured error response returned', function () {",
+                  "    pm.expect(jsonData.status).to.eql(400);",
+                  "    pm.expect(jsonData.message).to.include('No registration found');",
+                  "    pm.expect(jsonData.correlationId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Exhibitor Portal (Phase 5)",
+      "item": [
+        {
+          "name": "2.1 Get Booth Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "stats"
+              ]
+            },
+            "description": "Retrieves real-time dashboard metrics (leads, products, visitors) for Truechip booth."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Stats structure is valid', function () {",
+                  "    pm.expect(jsonData.company).to.eql('Truechip Solutions');",
+                  "    pm.expect(jsonData.leads).to.be.a('number');",
+                  "    pm.expect(jsonData.totalProducts).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Get Exhibitor Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "products"
+              ]
+            },
+            "description": "Lists all products showcased by Truechip."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Products array returned', function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"USB4 2.0 Verification IP\",\n  \"tagline\": \"Next-gen 80 Gbps multi-protocol physical layer verification IP\",\n  \"category\": \"Verification IP & EDA\",\n  \"overview\": \"Industry-first commercial verification IP enabling 80 Gbps asymmetric transmission testing.\",\n  \"features\": [\n    \"PAM3 signaling validation\",\n    \"Multi-protocol tunneling\",\n    \"Built-in error injection\"\n  ],\n  \"benefits\": [\n    \"Reduces tape-out risk\",\n    \"Comprehensive protocol compliance\"\n  ],\n  \"useCases\": [\n    \"High-resolution display hubs\",\n    \"AI external accelerator interconnects\"\n  ],\n  \"websiteUrl\": \"https://www.truechip.net/usb4\",\n  \"brochureUrl\": \"https://www.truechip.net/usb4-spec.pdf\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "products"
+              ]
+            },
+            "description": "Creates a new product in the exhibitor catalog and stores its ID in createdProductId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Product created with ID', function () {",
+                  "    pm.expect(jsonData.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('createdProductId', jsonData.id);",
+                  "    pm.expect(jsonData.name).to.eql('USB4 2.0 Verification IP');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"USB4 2.0 Verification IP (Updated)\",\n  \"tagline\": \"Enhanced 120 Gbps asymmetric transmission testing IP\",\n  \"category\": \"Verification IP & EDA\",\n  \"overview\": \"Enhanced edition with advanced protocol checking suites.\",\n  \"features\": [\n    \"PAM3 signaling\",\n    \"120 Gbps asymmetric testing\",\n    \"Automated corner-case suites\"\n  ],\n  \"benefits\": [\n    \"Guaranteed interop compliance\"\n  ],\n  \"useCases\": [\n    \"Silicon validation\",\n    \"Pre-silicon simulation\"\n  ],\n  \"websiteUrl\": \"https://www.truechip.net/usb4-updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/products/{{createdProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "products",
+                "{{createdProductId}}"
+              ]
+            },
+            "description": "Updates the previously created product details."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Product tagline updated', function () {",
+                  "    pm.expect(jsonData.tagline).to.include('120 Gbps');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.5 Search Directory Candidates for Lead Capture",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/candidates?search=Hari",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "candidates"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Hari"
+                }
+              ]
+            },
+            "description": "Searches registered attendees without camera QR scanning to capture them as leads."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Candidate found', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "    pm.expect(jsonData[0].name).to.eql('Hari Gupta');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.6 Capture Lead (Default Status 'New')",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attendeeId\": \"att-hari-gupta\",\n  \"source\": \"Directory Lead Capture\",\n  \"notes\": \"Visited booth to evaluate PCIe Gen 6 VIP for automotive SoC design.\",\n  \"interests\": [\n    \"PCIe Gen 6 / 7 VIP\",\n    \"USB4 2.0 Verification IP\"\n  ],\n  \"productsViewed\": [\n    \"prod-truechip-1\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/leads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "leads"
+              ]
+            },
+            "description": "Captures Hari Gupta as a lead. Enforces architectural invariant: newly captured leads strictly default to status 'New'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Lead has default status New', function () {",
+                  "    pm.expect(jsonData.status).to.eql('New');",
+                  "    pm.expect(jsonData.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('createdLeadId', jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.7 Get Leads List (Filtered by Status)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/leads?status=New",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "New"
+                }
+              ]
+            },
+            "description": "Lists all leads with status 'New'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Returns New leads', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "    pm.expect(jsonData[0].status).to.eql('New');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.8 Update Lead Status -> Interested",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Interested\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/leads/{{createdLeadId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "leads",
+                "{{createdLeadId}}",
+                "status"
+              ]
+            },
+            "description": "Transitions lead status from 'New' to 'Interested'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status updated to Interested', function () {",
+                  "    pm.expect(jsonData.status).to.eql('Interested');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.9 Update Lead Status -> Follow-up",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Follow-up\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/leads/{{createdLeadId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "leads",
+                "{{createdLeadId}}",
+                "status"
+              ]
+            },
+            "description": "Transitions lead status from 'Interested' to 'Follow-up'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status updated to Follow-up', function () {",
+                  "    pm.expect(jsonData.status).to.eql('Follow-up');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.10 Export Leads CSV (RFC 4180)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/leads/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "leads",
+                "export"
+              ]
+            },
+            "description": "Downloads captured leads in standard RFC 4180 compliant CSV format."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Content-Type is text/csv', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv');",
+                  "});",
+                  "pm.test('CSV contains header columns', function () {",
+                  "    pm.expect(pm.response.text()).to.include('Lead ID,Name,Company,Designation,Status');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.11 Cross-Tenant Booth Access Denied (Negative Test)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-samsung/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-samsung",
+                "stats"
+              ]
+            },
+            "description": "Verifies that Truechip exhibitor staff cannot access Samsung's booth data. Returns 403 Forbidden."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Tenant isolation error returned', function () {",
+                  "    pm.expect(jsonData.message).to.include('Cross-tenant access is prohibited');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.12 Cleanup Created Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenExhibitor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/exhibitors/exh-truechip/products/{{createdProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "exhibitors",
+                "exh-truechip",
+                "products",
+                "{{createdProductId}}"
+              ]
+            },
+            "description": "Deletes the test product created in 2.3."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204 No Content', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Attendee Directory & Privacy (Phase 6)",
+      "item": [
+        {
+          "name": "3.1 Browse Directory (Excluding Self)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees"
+              ]
+            },
+            "description": "Retrieves the conference attendee directory. Hari does not see himself in the directory."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Directory contains attendees', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "    var selfFound = jsonData.some(a => a.id === 'att-hari-gupta');",
+                  "    pm.expect(selfFound).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Filter Directory by Category (Speakers)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees?category=speaker",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "speaker"
+                }
+              ]
+            },
+            "description": "Filters the attendee directory to only list speakers."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Only speakers returned', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "    jsonData.forEach(a => pm.expect(a.category).to.eql('speaker'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 View Santosh Profile Before Connecting (Privacy Masked)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/att-santosh-kumar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "att-santosh-kumar"
+              ]
+            },
+            "description": "Verifies that before connection is accepted, Santosh's phone and email are masked as 'contact@eventsphere.internal' and '+91 98765 00000'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Contacts are masked for privacy', function () {",
+                  "    pm.expect(jsonData.email).to.eql('contact@eventsphere.internal');",
+                  "    pm.expect(jsonData.mobile).to.eql('+91 98765 00000');",
+                  "    pm.expect(jsonData.connectionStatus).to.eql('none');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Get Own Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "me"
+              ]
+            },
+            "description": "Retrieves the authenticated user's own profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Own profile returned', function () {",
+                  "    pm.expect(jsonData.id).to.eql('att-hari-gupta');",
+                  "    pm.expect(jsonData.email).to.eql('hari@techcorp.com');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.5 Update Own Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hari Gupta\",\n  \"designation\": \"Chief Technology Officer\",\n  \"company\": \"EventSphere AI Labs\",\n  \"bio\": \"Passionate about event technology, high-scale microservices, and silicon innovations.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "me"
+              ]
+            },
+            "description": "Updates Hari's designation, company, and bio."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Profile updated successfully', function () {",
+                  "    pm.expect(jsonData.designation).to.eql('Chief Technology Officer');",
+                  "    pm.expect(jsonData.company).to.eql('EventSphere AI Labs');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.6 Update Privacy Consent Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preset\": \"Connections Only\",\n  \"shareEmail\": true,\n  \"sharePhone\": false,\n  \"shareLinkedIn\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/me/privacy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "me",
+                "privacy"
+              ]
+            },
+            "description": "Sets privacy preset to 'Connections Only', disabling phone sharing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Privacy settings updated', function () {",
+                  "    pm.expect(jsonData.preset).to.eql('Connections Only');",
+                  "    pm.expect(jsonData.sharePhone).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.7 Bookmark / Save Attendee (Santosh)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/att-santosh-kumar/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "att-santosh-kumar",
+                "save"
+              ]
+            },
+            "description": "Bookmarks Santosh Kumar in Hari's saved attendees list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Saved flag is true', function () {",
+                  "    pm.expect(jsonData.saved).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.8 List Saved Attendees",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/saved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "saved"
+              ]
+            },
+            "description": "Retrieves all attendees bookmarked by Hari."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Saved list contains Santosh', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "    pm.expect(jsonData[0].id).to.eql('att-santosh-kumar');",
+                  "    pm.expect(jsonData[0].isSaved).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.9 Remove Bookmark (Unsave)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/att-santosh-kumar/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "att-santosh-kumar",
+                "save"
+              ]
+            },
+            "description": "Removes bookmark on Santosh Kumar."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Saved flag is false', function () {",
+                  "    pm.expect(jsonData.saved).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Networking Connections (Phase 6)",
+      "item": [
+        {
+          "name": "4.1 Send Connection Request (Hari -> Santosh)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetAttendeeId\": \"att-santosh-kumar\",\n  \"source\": \"recommended\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/connections",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "connections"
+              ]
+            },
+            "description": "Sends a connection request from Hari to Santosh and stores connection ID in activeConnectionId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Connection request sent as pending', function () {",
+                  "    pm.expect(jsonData.status).to.eql('pending');",
+                  "    pm.expect(jsonData.type).to.eql('sent');",
+                  "    pm.collectionVariables.set('activeConnectionId', jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Self-Connection Blocked (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetAttendeeId\": \"att-hari-gupta\",\n  \"source\": \"direct\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/connections",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "connections"
+              ]
+            },
+            "description": "Verifies that connecting to oneself is blocked with 400 Bad Request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Self connection error returned', function () {",
+                  "    pm.expect(jsonData.message).to.include('Cannot connect with yourself');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Santosh Views Received Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSantosh}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/connections",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "connections"
+              ]
+            },
+            "description": "Santosh inspects his connection list and sees Hari's pending incoming request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Received connection request found', function () {",
+                  "    var req = jsonData.find(c => c.personId === 'att-hari-gupta');",
+                  "    pm.expect(req).to.not.be.undefined;",
+                  "    pm.expect(req.type).to.eql('received');",
+                  "    pm.expect(req.status).to.eql('pending');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.4 Santosh Accepts Connection Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSantosh}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/connections/{{activeConnectionId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "connections",
+                "{{activeConnectionId}}",
+                "accept"
+              ]
+            },
+            "description": "Santosh accepts Hari's request. Status updates to 'connected'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Connection status is now connected', function () {",
+                  "    pm.expect(jsonData.status).to.eql('connected');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.5 Hari Views Santosh Profile After Connecting (Revealed Contacts)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/attendees/att-santosh-kumar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "attendees",
+                "att-santosh-kumar"
+              ]
+            },
+            "description": "Confirms the privacy invariant: once connected, Santosh's real email and mobile number are revealed to Hari!"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Real contact details are now visible', function () {",
+                  "    pm.expect(jsonData.email).to.eql('skvishvakarma@iiti.ac.in');",
+                  "    pm.expect(jsonData.mobile).to.eql('+91 97137 22841');",
+                  "    pm.expect(jsonData.connectionStatus).to.eql('connected');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.6 Disconnect / Remove Connection",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/connections/{{activeConnectionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "connections",
+                "{{activeConnectionId}}"
+              ]
+            },
+            "description": "Removes the connection between Hari and Santosh."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204 No Content', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Agenda, Live Q&A & Polls (Phase 7)",
+      "item": [
+        {
+          "name": "5.1 Get Agenda Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions"
+              ]
+            },
+            "description": "Retrieves conference agenda sessions with personalized isBookmarked flag."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Sessions returned', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 Filter Sessions by Day",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions?day=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions"
+              ],
+              "query": [
+                {
+                  "key": "day",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Filters sessions for Day 1."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('All returned sessions are day 1', function () {",
+                  "    jsonData.forEach(s => pm.expect(s.day).to.eql(1));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 Bookmark Keynote Session (My Schedule)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/mpss26-d1-02/bookmark",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions",
+                "mpss26-d1-02",
+                "bookmark"
+              ]
+            },
+            "description": "Bookmarks the Keynote session to add it to Hari's personal schedule."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Session bookmarked', function () {",
+                  "    pm.expect(jsonData.isBookmarked).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 View My Schedule (Bookmarked Only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions?bookmarkedOnly=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions"
+              ],
+              "query": [
+                {
+                  "key": "bookmarkedOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Retrieves only bookmarked sessions for Hari's 'My Schedule' tab."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Only bookmarked sessions returned', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "    var found = jsonData.some(s => s.id === 'mpss26-d1-02');",
+                  "    pm.expect(found).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Submit Q&A Question (Default 0 Upvotes Invariant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What specific packaging standards will be supported in the MP semiconductor cluster?\",\n  \"isAnonymous\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/mpss26-d1-02/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions",
+                "mpss26-d1-02",
+                "questions"
+              ]
+            },
+            "description": "Submits a question. Enforces invariant: new question upvotes default strictly to 0."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Question starts with 0 upvotes', function () {",
+                  "    pm.expect(jsonData.upvotes).to.eql(0);",
+                  "    pm.expect(jsonData.hasUpvoted).to.be.false;",
+                  "    pm.collectionVariables.set('createdQuestionId', jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.6 Submit Anonymous Question",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Are power and water infrastructure guarantees backed by state policy?\",\n  \"isAnonymous\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/mpss26-d1-02/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions",
+                "mpss26-d1-02",
+                "questions"
+              ]
+            },
+            "description": "Submits an anonymous question. Masks author name and ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Author identity masked', function () {",
+                  "    pm.expect(jsonData.isAnonymous).to.be.true;",
+                  "    pm.expect(jsonData.authorName).to.eql('Anonymous Attendee');",
+                  "    pm.expect(jsonData.authorId).to.eql('usr-anon');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.7 Upvote Question (Santosh Upvotes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSantosh}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/questions/{{createdQuestionId}}/upvote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions",
+                "questions",
+                "{{createdQuestionId}}",
+                "upvote"
+              ]
+            },
+            "description": "Santosh upvotes Hari's question. Increments upvote count from 0 to 1."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Upvote registered', function () {",
+                  "    pm.expect(jsonData.upvotes).to.eql(1);",
+                  "    pm.expect(jsonData.hasUpvoted).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.8 Remove Upvote (Toggle Off)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSantosh}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/questions/{{createdQuestionId}}/upvote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions",
+                "questions",
+                "{{createdQuestionId}}",
+                "upvote"
+              ]
+            },
+            "description": "Santosh toggles off upvote. Decrements count from 1 to 0."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Upvote removed', function () {",
+                  "    pm.expect(jsonData.upvotes).to.eql(0);",
+                  "    pm.expect(jsonData.hasUpvoted).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.9 Get Session Polls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/mpss26-d1-02/polls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions",
+                "mpss26-d1-02",
+                "polls"
+              ]
+            },
+            "description": "Retrieves live polls and options for the session."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Poll options returned', function () {",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "    pm.expect(jsonData[0].options.length).to.be.at.least(2);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.10 Invalid Poll Option Blocked (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"optionId\": \"opt-invalid-999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/polls/poll-mpss26-01/vote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "polls",
+                "poll-mpss26-01",
+                "vote"
+              ]
+            },
+            "description": "Verifies that voting with an option not belonging to the poll fails with 400 Bad Request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Option mismatch error returned', function () {",
+                  "    pm.expect(jsonData.message).to.include('does not belong to poll');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.11 Cast Poll Vote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"optionId\": \"opt-1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/polls/poll-mpss26-01/vote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "polls",
+                "poll-mpss26-01",
+                "vote"
+              ]
+            },
+            "description": "Hari casts a vote for Fabless Chip Design (opt-1)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Vote registered', function () {",
+                  "    pm.expect(jsonData.hasVoted).to.be.true;",
+                  "    pm.expect(jsonData.votedOptionId).to.eql('opt-1');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.12 Duplicate Poll Vote Prevented (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"optionId\": \"opt-1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/polls/poll-mpss26-01/vote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "polls",
+                "poll-mpss26-01",
+                "vote"
+              ]
+            },
+            "description": "Verifies that voting a second time is blocked with 400 Bad Request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Duplicate vote error returned', function () {",
+                  "    pm.expect(jsonData.message).to.include('already voted in this poll');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.13 Reset Poll Vote",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/polls/poll-mpss26-01/vote",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "polls",
+                "poll-mpss26-01",
+                "vote"
+              ]
+            },
+            "description": "Resets Hari's vote so the poll can be tested again."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Vote reset', function () {",
+                  "    pm.expect(jsonData.hasVoted).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.14 Unbookmark Keynote Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/mpss26-d1-02/bookmark",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sessions",
+                "mpss26-d1-02",
+                "bookmark"
+              ]
+            },
+            "description": "Toggles off bookmark on the Keynote session."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Session unbookmarked', function () {",
+                  "    pm.expect(jsonData.isBookmarked).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Organizer Console & Operations (Phase 8)",
+      "item": [
+        {
+          "name": "6.1 Get Event Metrics Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "metrics"
+              ]
+            },
+            "description": "Retrieves live event KPI metrics including check-in rate, total leads, active exhibitors, live sessions, and top exhibitors by captured leads."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Metrics structure is valid', function () {",
+                  "    pm.expect(jsonData.eventId).to.eql('MPSS26');",
+                  "    pm.expect(jsonData.totalRegistered).to.be.above(0);",
+                  "    pm.expect(jsonData.checkInRate).to.be.at.least(0);",
+                  "    pm.expect(jsonData.topExhibitors).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.2 Get Event Metrics Forbidden for Delegate (Negative Test)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenHari}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "metrics"
+              ]
+            },
+            "description": "Verifies that non-organizers (such as delegates) receive 403 Forbidden when attempting to access organizer console."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.3 Toggle Attendee Check-In Status (Santosh Kumar)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/attendees/att-santosh-kumar/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "attendees",
+                "att-santosh-kumar",
+                "check-in"
+              ]
+            },
+            "description": "Toggles the check-in status of Santosh Kumar and updates timestamp."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Check-in status returned', function () {",
+                  "    pm.expect(jsonData.attendeeId).to.eql('att-santosh-kumar');",
+                  "    pm.expect(jsonData.checkedIn).to.be.a('boolean');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.4 Re-Toggle Attendee Check-In Status (Reset)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/attendees/att-santosh-kumar/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "attendees",
+                "att-santosh-kumar",
+                "check-in"
+              ]
+            },
+            "description": "Toggles the check-in status back to ensure clean state."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.5 Register Walk-In Attendee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kavita Deshmukh\",\n  \"email\": \"kavita.deshmukh@bharatsilicon.in\",\n  \"mobile\": \"9822334455\",\n  \"company\": \"Bharat Silicon Semi\",\n  \"designation\": \"Senior Foundry Liaison\",\n  \"ticketType\": \"Full Access Delegate Pass\",\n  \"category\": \"DELEGATE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/attendees/walk-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "attendees",
+                "walk-in"
+              ]
+            },
+            "description": "Creates an on-site walk-in attendee with auto-generated #WLK registration ID, checked-in status, and default privacy profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Walk-in attendee created and checked in', function () {",
+                  "    pm.expect(jsonData.name).to.eql('Kavita Deshmukh');",
+                  "    pm.expect(jsonData.registrationId).to.include('#WLK-');",
+                  "    pm.expect(jsonData.checkedIn).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.6 Reject Duplicate Walk-In Mobile (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Kavita Duplicate\",\n  \"email\": \"kavita.duplicate@test.com\",\n  \"mobile\": \"9822334455\",\n  \"company\": \"Bharat Silicon\",\n  \"ticketType\": \"Delegate Pass\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/attendees/walk-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "attendees",
+                "walk-in"
+              ]
+            },
+            "description": "Verifies that registering a walk-in attendee with an existing mobile number is rejected with 400 Bad Request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Duplicate error message returned', function () {",
+                  "    pm.expect(jsonData.message).to.include('already registered');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.7 Create Organizer Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Special Briefing: Semiconductor Talent & Incubation\",\n  \"track\": \"Workforce\",\n  \"day\": 2,\n  \"timeRange\": \"04:00 PM – 05:00 PM\",\n  \"room\": \"Hall C\",\n  \"status\": \"upcoming\",\n  \"speakerName\": \"Sanjay Gupta\",\n  \"speakerDesignation\": \"President\",\n  \"speakerCompany\": \"VLSI Society of India\",\n  \"description\": \"Strategic alignment of academic curricula with Tier-1 EDA tool flows.\",\n  \"takeaways\": [\n    \"Curriculum upgrades\",\n    \"Faculty training grants\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "sessions"
+              ]
+            },
+            "description": "Creates a new conference session in MPSS26 agenda and sets createdSessionId variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Session created', function () {",
+                  "    pm.expect(jsonData.id).to.be.a('string');",
+                  "    pm.collectionVariables.set('createdSessionId', jsonData.id);",
+                  "    pm.expect(jsonData.title).to.include('Special Briefing');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.8 Update Session Status to Live",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"live\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/sessions/{{createdSessionId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "sessions",
+                "{{createdSessionId}}",
+                "status"
+              ]
+            },
+            "description": "Transitions session state from upcoming to live."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Status changed to live', function () {",
+                  "    pm.expect(jsonData.status).to.eql('live');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.9 Update Session Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Special Briefing: Semiconductor Talent & Incubation [UPDATED]\",\n  \"track\": \"Workforce\",\n  \"day\": 2,\n  \"timeRange\": \"04:00 PM – 05:30 PM\",\n  \"room\": \"Hall C\",\n  \"status\": \"live\",\n  \"speakerName\": \"Dr. Sanjay Gupta\",\n  \"speakerDesignation\": \"President & Fellow\",\n  \"speakerCompany\": \"VLSI Society of India\",\n  \"description\": \"Comprehensive strategic alignment of academic curricula with Tier-1 EDA tool flows.\",\n  \"takeaways\": [\n    \"Curriculum upgrades\",\n    \"Faculty training grants\",\n    \"Student internships\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/sessions/{{createdSessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "sessions",
+                "{{createdSessionId}}"
+              ]
+            },
+            "description": "Updates session metadata and takeaways."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test('Session updated', function () {",
+                  "    pm.expect(jsonData.title).to.include('[UPDATED]');",
+                  "    pm.expect(jsonData.takeaways.length).to.eql(3);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.10 Delete Organizer Session",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenOrganizer}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/organizer/sessions/{{createdSessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "organizer",
+                "sessions",
+                "{{createdSessionId}}"
+              ]
+            },
+            "description": "Deletes the test session cleanly."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
