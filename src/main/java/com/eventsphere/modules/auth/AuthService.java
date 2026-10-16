@@ -6,6 +6,7 @@ import com.eventsphere.common.security.JwtService;
 import com.eventsphere.common.security.RateLimiterService;
 import com.eventsphere.modules.attendee.AttendeeEntity;
 import com.eventsphere.modules.attendee.AttendeeRepository;
+import com.eventsphere.modules.attendee.model.AttendeeCategory;
 import com.eventsphere.modules.attendee.model.UserRole;
 import com.eventsphere.modules.auth.dto.AccessRequest;
 import com.eventsphere.modules.auth.dto.AccessResponse;
@@ -49,6 +50,11 @@ public class AuthService {
 
         // 2. Normalize mobile
         String normalizedMobile = normalizeMobile(request.getMobile());
+        if (normalizedMobile.isBlank()) {
+            throw new ResourceNotFoundException(
+                    "No registration found for mobile number '" + request.getMobile() + "' in event '" + request.getEventId() + "'"
+            );
+        }
 
         // 3. Find attendee by event and normalized mobile
         AttendeeEntity attendee = findAttendeeByMobile(request.getEventId(), normalizedMobile)
@@ -61,7 +67,7 @@ public class AuthService {
         String boothNumber = null;
 
         if (attendee.getAuthRole() == UserRole.ROLE_EXHIBITOR) {
-            Optional<ExhibitorStaffEntity> staffOpt = exhibitorStaffRepository.findByIdAttendeeId(attendee.getId());
+            Optional<ExhibitorStaffEntity> staffOpt = exhibitorStaffRepository.findFirstByIdAttendeeId(attendee.getId());
             if (staffOpt.isPresent()) {
                 exhibitorId = staffOpt.get().getId().getExhibitorId();
                 Optional<ExhibitorEntity> exhibitorOpt = exhibitorRepository.findById(exhibitorId);
@@ -137,20 +143,7 @@ public class AuthService {
     }
 
     private Optional<AttendeeEntity> findAttendeeByMobile(String eventId, String normalizedMobile) {
-        Optional<AttendeeEntity> opt = attendeeRepository.findByEventIdAndNormalizedMobile(eventId, normalizedMobile);
-        if (opt.isPresent()) {
-            return opt;
-        }
-
-        // Resilience check for organizer seed format variance (9876543212 vs 90876543212)
-        if ("9876543212".equals(normalizedMobile)) {
-            return attendeeRepository.findByEventIdAndNormalizedMobile(eventId, "90876543212");
-        }
-        if ("90876543212".equals(normalizedMobile)) {
-            return attendeeRepository.findByEventIdAndNormalizedMobile(eventId, "9876543212");
-        }
-
-        return Optional.empty();
+        return attendeeRepository.findByEventIdAndNormalizedMobile(eventId, normalizedMobile);
     }
 
     private String normalizeMobile(String rawMobile) {

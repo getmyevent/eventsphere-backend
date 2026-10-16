@@ -27,10 +27,10 @@ public class AttendeeEntity {
     @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false, length = 32)
+    @Column(length = 32)
     private String mobile;
 
-    @Column(name = "normalized_mobile", nullable = false, length = 20)
+    @Column(name = "normalized_mobile", length = 20)
     private String normalizedMobile;
 
     private String designation;
@@ -58,6 +58,15 @@ public class AttendeeEntity {
 
     @Column(name = "twitter_url")
     private String twitterUrl;
+
+    @Column(name = "interests_json", columnDefinition = "JSON")
+    private String interestsJson;
+
+    @Column(name = "skills_json", columnDefinition = "JSON")
+    private String skillsJson;
+
+    @Transient
+    private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @Column(name = "relevance_score")
     private Integer relevanceScore = 0;
@@ -158,4 +167,53 @@ public class AttendeeEntity {
 
     public PrivacyConsentEntity getPrivacyConsent() { return privacyConsent; }
     public void setPrivacyConsent(PrivacyConsentEntity privacyConsent) { this.privacyConsent = privacyConsent; }
+
+    public String getInterestsJson() { return interestsJson; }
+    public void setInterestsJson(String interestsJson) { this.interestsJson = interestsJson; }
+
+    public String getSkillsJson() { return skillsJson; }
+    public void setSkillsJson(String skillsJson) { this.skillsJson = skillsJson; }
+
+    public java.util.List<String> getInterestsList() {
+        if (interestsJson == null || interestsJson.isBlank()) return new java.util.ArrayList<>();
+        try {
+            return MAPPER.readValue(interestsJson, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {});
+        } catch (Exception e) {
+            return new java.util.ArrayList<>();
+        }
+    }
+
+    public void setInterestsList(java.util.List<String> list) {
+        if (list == null) {
+            this.interestsJson = "[]";
+            return;
+        }
+        try {
+            this.interestsJson = MAPPER.writeValueAsString(list);
+        } catch (Exception e) {
+            this.interestsJson = "[]";
+        }
+    }
+
+    public java.util.List<String> getSkillsList() {
+        if (skillsJson == null || skillsJson.isBlank()) return new java.util.ArrayList<>();
+        try {
+            return MAPPER.readValue(skillsJson, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<String>>() {});
+        } catch (Exception e) {
+            return new java.util.ArrayList<>();
+        }
+    }
+
+    public void setSkillsList(java.util.List<String> list) {
+        if (list == null) {
+            this.skillsJson = "[]";
+            return;
+        }
+        try {
+            this.skillsJson = MAPPER.writeValueAsString(list);
+        } catch (Exception e) {
+            this.skillsJson = "[]";
+        }
+    }
 }
+

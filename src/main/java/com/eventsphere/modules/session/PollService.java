@@ -67,19 +67,21 @@ public class PollService {
             throw new BusinessException("You have already voted in this poll");
         }
 
-        // Record vote
-        pollVoteRepository.save(new PollVoteEntity(pollId, attendeeId, option.getId()));
+        // Record vote atomically
+        try {
+            pollVoteRepository.saveAndFlush(new PollVoteEntity(pollId, attendeeId, option.getId()));
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new BusinessException("You have already voted in this poll");
+        }
 
-        // Update vote tallies
-        option.setVotes(option.getVotes() + 1);
-        pollOptionRepository.save(option);
-
-        poll.setTotalVotes(poll.getTotalVotes() + 1);
-        pollRepository.save(poll);
+        // Update vote tallies atomically via DB UPDATE queries
+        pollOptionRepository.incrementVotes(option.getId());
+        pollRepository.incrementTotalVotes(pollId);
 
         log.info("Attendee {} voted for option {} in poll {}", attendeeId, option.getId(), pollId);
 
-        return mapToDto(poll, attendeeId);
+        PollEntity updatedPoll = pollRepository.findById(pollId).orElse(poll);
+        return mapToDto(updatedPoll, attendeeId);
     }
 
     @Transactional
@@ -93,19 +95,16 @@ public class PollService {
         }
 
         PollVoteEntity vote = existingVote.get();
-        pollOptionRepository.findByPollIdAndId(pollId, vote.getOptionId()).ifPresent(opt -> {
-            opt.setVotes(Math.max(0, opt.getVotes() - 1));
-            pollOptionRepository.save(opt);
-        });
-
+        pollOptionRepository.decrementVotes(vote.getOptionId());
         pollVoteRepository.delete(vote);
+        pollVoteRepository.flush();
 
-        poll.setTotalVotes(Math.max(0, poll.getTotalVotes() - 1));
-        pollRepository.save(poll);
+        pollRepository.decrementTotalVotes(pollId);
 
         log.info("Attendee {} reset vote in poll {}", attendeeId, pollId);
 
-        return mapToDto(poll, attendeeId);
+        PollEntity updatedPoll = pollRepository.findById(pollId).orElse(poll);
+        return mapToDto(updatedPoll, attendeeId);
     }
 
     private PollDto mapToDto(PollEntity poll, String currentAttendeeId) {

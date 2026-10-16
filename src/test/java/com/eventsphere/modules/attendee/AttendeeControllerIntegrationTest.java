@@ -59,6 +59,9 @@ class AttendeeControllerIntegrationTest {
     private ConnectionRepository connectionRepository;
 
     @Autowired
+    private com.eventsphere.modules.exhibitor.ExhibitorRepository exhibitorRepository;
+
+    @Autowired
     private RateLimiterService rateLimiterService;
 
     private static final String EVENT_ID = "MPSS26";
@@ -312,6 +315,59 @@ class AttendeeControllerIntegrationTest {
 
         // Verify in DB
         assertThat(savedPersonRepository.existsByAttendeeIdAndTargetPersonId("att-user-a", "att-user-b")).isFalse();
+    }
+
+    @Test
+    @DisplayName("Directory pagination respects page and size parameters")
+    void testDirectoryPagination() throws Exception {
+        mockMvc.perform(get("/api/v1/attendees")
+                        .param("page", "0")
+                        .param("size", "1")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        mockMvc.perform(get("/api/v1/attendees")
+                        .param("page", "1")
+                        .param("size", "1")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    @DisplayName("Saved exhibitors endpoints save, list, and delete exhibitors")
+    void testSavedExhibitorsFlow() throws Exception {
+        com.eventsphere.modules.exhibitor.ExhibitorEntity exh = new com.eventsphere.modules.exhibitor.ExhibitorEntity();
+        exh.setId("exh-test-phase7");
+        exh.setEventId(EVENT_ID);
+        exh.setCompany("Test Semiconductor Ltd");
+        exh.setBooth("Hall 2 · B-10");
+        exh.setCategory("Packaging");
+        exhibitorRepository.save(exh);
+
+        // 1. Save exhibitor
+        mockMvc.perform(post("/api/v1/attendees/saved-exhibitors/exh-test-phase7")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saved", is(true)));
+
+        // 2. Get saved exhibitors list
+        mockMvc.perform(get("/api/v1/attendees/saved-exhibitors")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasItem("exh-test-phase7")));
+
+        // 3. Delete saved exhibitor
+        mockMvc.perform(delete("/api/v1/attendees/saved-exhibitors/exh-test-phase7")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saved", is(false)));
+
+        // 4. Unknown exhibitor returns 404
+        mockMvc.perform(post("/api/v1/attendees/saved-exhibitors/exh-unknown-404")
+                        .header("Authorization", "Bearer " + userAToken))
+                .andExpect(status().isNotFound());
     }
 
     private String obtainToken(String mobile) throws Exception {

@@ -87,6 +87,9 @@ public class ExhibitorStatsDto {
     public long getTotalLeads() { return totalLeads; }
     public void setTotalLeads(long totalLeads) { this.totalLeads = totalLeads; }
 
+    public long getLeads() { return totalLeads; }
+    public void setLeads(long leads) { this.totalLeads = leads; }
+
     public long getNewLeads() { return newLeads; }
     public void setNewLeads(long newLeads) { this.newLeads = newLeads; }
 
@@ -102,6 +105,12 @@ public class ExhibitorStatsDto {
     public long getTotalViews() { return totalViews; }
     public void setTotalViews(long totalViews) { this.totalViews = totalViews; }
 
+    public long getVisits() { return totalViews; }
+    public void setVisits(long visits) { this.totalViews = visits; }
+
     public long getTotalEnquiries() { return totalEnquiries; }
     public void setTotalEnquiries(long totalEnquiries) { this.totalEnquiries = totalEnquiries; }
+
+    public long getEnquiries() { return totalEnquiries; }
+    public void setEnquiries(long enquiries) { this.totalEnquiries = enquiries; }
 }

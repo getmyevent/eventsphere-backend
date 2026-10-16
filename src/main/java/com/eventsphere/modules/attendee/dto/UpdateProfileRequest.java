@@ -11,6 +11,10 @@ public class UpdateProfileRequest {
     private String twitter;
     private String email;
     private String mobile;
+    private String ticketType;
+    private String category;
+    private java.util.List<String> skills;
+    private java.util.List<String> interests;
 
     public UpdateProfileRequest() {}
 
@@ -52,4 +56,16 @@ public class UpdateProfileRequest {
 
     public String getMobile() { return mobile; }
     public void setMobile(String mobile) { this.mobile = mobile; }
+
+    public String getTicketType() { return ticketType; }
+    public void setTicketType(String ticketType) { this.ticketType = ticketType; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
+    public java.util.List<String> getSkills() { return skills; }
+    public void setSkills(java.util.List<String> skills) { this.skills = skills; }
+
+    public java.util.List<String> getInterests() { return interests; }
+    public void setInterests(java.util.List<String> interests) { this.interests = interests; }
 }

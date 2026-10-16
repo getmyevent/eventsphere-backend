@@ -11,6 +11,8 @@ public interface ProductRepository extends JpaRepository<ProductEntity, String> 
 
     List<ProductEntity> findAllByExhibitorIdOrderByCreatedAtAsc(String exhibitorId);
 
+    List<ProductEntity> findAllByExhibitorIdInOrderByCreatedAtAsc(List<String> exhibitorIds);
+
     Optional<ProductEntity> findByIdAndExhibitorId(String id, String exhibitorId);
 
     boolean existsByIdAndExhibitorId(String id, String exhibitorId);

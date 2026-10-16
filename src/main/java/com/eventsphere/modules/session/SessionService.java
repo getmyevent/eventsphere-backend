@@ -37,6 +37,11 @@ public class SessionService {
         this.objectMapper = objectMapper;
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "sessions", key = "#eventId")
+    public List<SessionEntity> getCachedBaseSessions(String eventId) {
+        return sessionRepository.findAllByEventIdOrderByDayNumberAsc(eventId);
+    }
+
     @Transactional(readOnly = true)
     public List<SessionDto> getSessions(
             String eventId,
@@ -47,22 +52,13 @@ public class SessionService {
             Boolean bookmarkedOnly,
             String attendeeId
     ) {
-        List<SessionEntity> allSessions = sessionRepository.findAllByEventIdOrderByDayNumberAsc(eventId);
+        List<SessionEntity> allSessions = getCachedBaseSessions(eventId);
 
         Set<String> bookmarkedIds = (attendeeId != null)
                 ? sessionBookmarkRepository.findByIdAttendeeId(attendeeId).stream()
                 .map(b -> b.getId().getSessionId())
                 .collect(Collectors.toSet())
                 : Set.of();
-
-        // Build speaker name -> ID map for event
-        Map<String, String> speakerNameToId = attendeeRepository.findAllByEventId(eventId).stream()
-                .filter(a -> a.getCategory().name().equalsIgnoreCase("SPEAKER") || a.getAuthRole().name().contains("SPEAKER"))
-                .collect(Collectors.toMap(
-                        a -> a.getName().toLowerCase().trim(),
-                        AttendeeEntity::getId,
-                        (existing, replacement) -> existing
-                ));
 
         return allSessions.stream()
                 .filter(s -> day == null || s.getDayNumber() == day)
@@ -83,7 +79,7 @@ public class SessionService {
                     }
                     return true;
                 })
-                .map(s -> mapToDto(s, bookmarkedIds.contains(s.getId()), speakerNameToId))
+                .map(s -> mapToDto(s, bookmarkedIds.contains(s.getId())))
                 .toList();
     }
 
@@ -95,17 +91,7 @@ public class SessionService {
         boolean isBookmarked = (attendeeId != null) &&
                 sessionBookmarkRepository.existsByIdSessionIdAndIdAttendeeId(sessionId, attendeeId);
 
-        String speakerId = null;
-        if (session.getSpeakerName() != null) {
-            String norm = session.getSpeakerName().toLowerCase().trim();
-            speakerId = attendeeRepository.findAllByEventId(session.getEventId()).stream()
-                    .filter(a -> a.getName().toLowerCase().trim().equals(norm) || norm.contains(a.getName().toLowerCase().trim()))
-                    .map(AttendeeEntity::getId)
-                    .findFirst()
-                    .orElse(null);
-        }
-
-        return mapToDto(session, isBookmarked, speakerId != null ? Map.of(session.getSpeakerName().toLowerCase().trim(), speakerId) : Map.of());
+        return mapToDto(session, isBookmarked);
     }
 
     @Transactional
@@ -126,21 +112,10 @@ public class SessionService {
         }
     }
 
-    private SessionDto mapToDto(SessionEntity s, boolean isBookmarked, Map<String, String> speakerNameToId) {
+    private SessionDto mapToDto(SessionEntity s, boolean isBookmarked) {
         List<String> takeaways = readStringList(s.getTakeawaysJson());
-        String speakerId = null;
-        if (s.getSpeakerName() != null) {
-            String norm = s.getSpeakerName().toLowerCase().trim();
-            speakerId = speakerNameToId.get(norm);
-            if (speakerId == null) {
-                // partial match
-                speakerId = speakerNameToId.entrySet().stream()
-                        .filter(e -> norm.contains(e.getKey()) || e.getKey().contains(norm))
-                        .map(Map.Entry::getValue)
-                        .findFirst()
-                        .orElse(null);
-            }
-        }
+        List<String> speakerIds = readStringList(s.getSpeakerIdsJson());
+        String speakerId = !speakerIds.isEmpty() ? speakerIds.get(0) : null;
 
         return new SessionDto(
                 s.getId(),
@@ -154,6 +129,7 @@ public class SessionService {
                 s.getSpeakerDesignation(),
                 s.getSpeakerCompany(),
                 speakerId,
+                speakerIds,
                 s.getDescription(),
                 takeaways,
                 s.getStatus(),

@@ -28,29 +28,35 @@ public class ExhibitorController {
         this.exhibitorService = exhibitorService;
     }
 
-    @GetMapping("/stats")
+    @GetMapping({"/stats", "/{exhibitorId}/stats"})
     public ResponseEntity<ExhibitorStatsDto> getStats(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         return ResponseEntity.ok(exhibitorService.getStats(resolvedId));
     }
 
-    @GetMapping("/attendees/search")
+    @GetMapping({"/attendees/search", "/{exhibitorId}/attendees/search", "/candidates", "/{exhibitorId}/candidates"})
     public ResponseEntity<List<AttendeeCandidateDto>> searchCandidates(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId,
             @RequestParam(required = false) String query,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String role,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
+        String effectiveQuery = (query != null && !query.isBlank()) ? query : search;
         List<AttendeeCandidateDto> candidates = exhibitorService.searchCandidates(
                 principal.getEventId(),
                 resolvedId,
-                query,
+                effectiveQuery,
                 role,
                 page,
                 size
@@ -58,45 +64,53 @@ public class ExhibitorController {
         return ResponseEntity.ok(candidates);
     }
 
-    @GetMapping("/leads")
+    @GetMapping({"/leads", "/{exhibitorId}/leads"})
     public ResponseEntity<List<LeadDto>> getLeads(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId,
             @RequestParam(required = false) LeadStatus status
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         return ResponseEntity.ok(exhibitorService.getLeads(resolvedId, status));
     }
 
-    @PostMapping("/leads")
+    @PostMapping({"/leads", "/{exhibitorId}/leads"})
     public ResponseEntity<LeadDto> captureLead(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId,
             @Valid @RequestBody CaptureLeadRequest request
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         LeadDto lead = exhibitorService.captureLead(resolvedId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(lead);
     }
 
-    @PatchMapping("/leads/{leadId}")
+    @PatchMapping({"/leads/{leadId}", "/leads/{leadId}/status", "/{exhibitorId}/leads/{leadId}", "/{exhibitorId}/leads/{leadId}/status"})
     public ResponseEntity<LeadDto> updateLeadStatus(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
             @PathVariable String leadId,
-            @RequestParam(required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId,
             @Valid @RequestBody UpdateLeadStatusRequest request
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         LeadDto lead = exhibitorService.updateLeadStatus(resolvedId, leadId, request);
         return ResponseEntity.ok(lead);
     }
 
-    @GetMapping("/leads/export")
+    @GetMapping({"/leads/export", "/{exhibitorId}/leads/export"})
     public ResponseEntity<byte[]> exportLeadsCsv(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         byte[] csvBytes = exhibitorService.exportLeadsCsv(resolvedId);
 
         HttpHeaders headers = new HttpHeaders();
@@ -107,65 +121,77 @@ public class ExhibitorController {
         return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
     }
 
-    @GetMapping("/products")
+    @GetMapping({"/products", "/{exhibitorId}/products"})
     public ResponseEntity<List<ProductDto>> getProducts(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         return ResponseEntity.ok(exhibitorService.getProducts(resolvedId));
     }
 
-    @GetMapping("/products/{productId}")
+    @GetMapping({"/products/{productId}", "/{exhibitorId}/products/{productId}"})
     public ResponseEntity<ProductDto> getProductById(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
             @PathVariable String productId,
-            @RequestParam(required = false) String exhibitorId
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         return ResponseEntity.ok(exhibitorService.getProductById(resolvedId, productId));
     }
 
-    @PostMapping("/products")
+    @PostMapping({"/products", "/{exhibitorId}/products"})
     public ResponseEntity<ProductDto> createProduct(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId,
             @Valid @RequestBody CreateProductRequest request
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         ProductDto created = exhibitorService.createProduct(resolvedId, request);
         return ResponseEntity.created(URI.create("/api/v1/exhibitor/products/" + created.getId())).body(created);
     }
 
-    @PutMapping("/products/{productId}")
+    @PutMapping({"/products/{productId}", "/{exhibitorId}/products/{productId}"})
     public ResponseEntity<ProductDto> updateProduct(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
             @PathVariable String productId,
-            @RequestParam(required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId,
             @Valid @RequestBody UpdateProductRequest request
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         return ResponseEntity.ok(exhibitorService.updateProduct(resolvedId, productId, request));
     }
 
-    @DeleteMapping("/products/{productId}")
+    @DeleteMapping({"/products/{productId}", "/{exhibitorId}/products/{productId}"})
     public ResponseEntity<Void> deleteProduct(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
             @PathVariable String productId,
-            @RequestParam(required = false) String exhibitorId
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         exhibitorService.deleteProduct(resolvedId, productId);
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/brochure")
+    @PutMapping({"/brochure", "/{exhibitorId}/brochure"})
     public ResponseEntity<ExhibitorStatsDto> updateBrochure(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
-            @RequestParam(required = false) String exhibitorId,
+            @PathVariable(name = "exhibitorId", required = false) String exhibitorId,
+            @RequestParam(name = "exhibitorId", required = false) String paramExhibitorId,
             @RequestBody UpdateBrochureRequest request
     ) {
-        String resolvedId = resolveExhibitorId(principal, exhibitorId);
+        String explicitId = (exhibitorId != null && !exhibitorId.isBlank()) ? exhibitorId : paramExhibitorId;
+        String resolvedId = resolveExhibitorId(principal, explicitId);
         return ResponseEntity.ok(exhibitorService.updateBrochure(resolvedId, request));
     }
 

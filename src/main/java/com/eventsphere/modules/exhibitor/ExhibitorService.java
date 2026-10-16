@@ -103,6 +103,7 @@ public class ExhibitorService {
         if ("Delegates".equalsIgnoreCase(roleFilter)) {
             attendees = attendeeRepository.searchCandidatesByCategories(
                     eventId,
+                    null,
                     searchQuery,
                     List.of(AttendeeCategory.DELEGATE),
                     pageable
@@ -110,6 +111,7 @@ public class ExhibitorService {
         } else if ("VIP & Speakers".equalsIgnoreCase(roleFilter) || "VIP".equalsIgnoreCase(roleFilter) || "Speakers".equalsIgnoreCase(roleFilter)) {
             attendees = attendeeRepository.searchCandidatesByCategories(
                     eventId,
+                    null,
                     searchQuery,
                     List.of(AttendeeCategory.VIP, AttendeeCategory.SPEAKER),
                     pageable
@@ -117,6 +119,7 @@ public class ExhibitorService {
         } else {
             attendees = attendeeRepository.searchCandidates(
                     eventId,
+                    null,
                     searchQuery,
                     AttendeeCategory.EXHIBITOR_STAFF,
                     pageable
@@ -384,6 +387,67 @@ public class ExhibitorService {
         exhibitorRepository.save(exhibitor);
         log.info("Updated company brochure for exhibitor {}", exhibitorId);
         return getStats(exhibitorId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PublicExhibitorDto> getPublicExhibitors(String eventId) {
+        List<ExhibitorEntity> list = exhibitorRepository.findAllByEventId(eventId);
+        return list.stream()
+                .filter(e -> !e.getId().equalsIgnoreCase("exh-truechip"))
+                .map(e -> new PublicExhibitorDto(
+                        e.getId(),
+                        e.getCompany(),
+                        e.getBooth(),
+                        e.getCategory(),
+                        e.getLogoUrl(),
+                        e.getBrochureUrl(),
+                        e.getBrochureName(),
+                        e.getStatus()
+                )).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PublicExhibitorDto getPublicExhibitor(String exhibitorId) {
+        ExhibitorEntity e = exhibitorRepository.findById(exhibitorId)
+                .or(() -> "exh-2".equalsIgnoreCase(exhibitorId) ? exhibitorRepository.findById("exh-truechip") : Optional.empty())
+                .or(() -> "exh-truechip".equalsIgnoreCase(exhibitorId) ? exhibitorRepository.findById("exh-2") : Optional.empty())
+                .orElseThrow(() -> new ResourceNotFoundException("Exhibitor", exhibitorId));
+        return new PublicExhibitorDto(
+                e.getId(),
+                e.getCompany(),
+                e.getBooth(),
+                e.getCategory(),
+                e.getLogoUrl(),
+                e.getBrochureUrl(),
+                e.getBrochureName(),
+                e.getStatus()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDto> getPublicProducts(String exhibitorId) {
+        ExhibitorEntity e = exhibitorRepository.findById(exhibitorId)
+                .or(() -> "exh-2".equalsIgnoreCase(exhibitorId) ? exhibitorRepository.findById("exh-truechip") : Optional.empty())
+                .or(() -> "exh-truechip".equalsIgnoreCase(exhibitorId) ? exhibitorRepository.findById("exh-2") : Optional.empty())
+                .orElseThrow(() -> new ResourceNotFoundException("Exhibitor", exhibitorId));
+
+        List<String> targetIds = ("exh-2".equalsIgnoreCase(exhibitorId) || "exh-truechip".equalsIgnoreCase(exhibitorId))
+                ? List.of("exh-2", "exh-truechip")
+                : List.of(exhibitorId);
+
+        List<ProductEntity> products = productRepository.findAllByExhibitorIdInOrderByCreatedAtAsc(targetIds);
+        return products.stream()
+                .map(p -> toProductDto(p, e.getCompany(), e.getBooth()))
+                .toList();
+    }
+
+    @Transactional
+    public void recordProductEnquiry(String productId, String attendeeId) {
+        ProductEntity product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
+        product.setEnquiries(product.getEnquiries() + 1);
+        productRepository.save(product);
+        log.info("Recorded enquiry for product {} by attendee {}", productId, attendeeId);
     }
 
     // Helper methods

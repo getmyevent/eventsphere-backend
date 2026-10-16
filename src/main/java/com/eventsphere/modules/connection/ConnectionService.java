@@ -96,7 +96,14 @@ public class ConnectionService {
     public void removeConnection(String eventId, String viewerId, String connectionId) {
         ConnectionEntity connection = connectionRepository.findById(connectionId)
                 .filter(c -> c.getEventId().equals(eventId))
-                .orElseThrow(() -> new ResourceNotFoundException("Connection not found: " + connectionId));
+                .orElse(null);
+
+        if (connection == null) {
+            String userLow = viewerId.compareTo(connectionId) <= 0 ? viewerId : connectionId;
+            String userHigh = viewerId.compareTo(connectionId) <= 0 ? connectionId : viewerId;
+            connection = connectionRepository.findByEventIdAndUserLowAndUserHigh(eventId, userLow, userHigh)
+                    .orElseThrow(() -> new ResourceNotFoundException("Connection not found: " + connectionId));
+        }
 
         if (!connection.getSenderId().equals(viewerId) && !connection.getReceiverId().equals(viewerId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "Access denied: you are not a party to this connection");
@@ -168,6 +175,24 @@ public class ConnectionService {
         } else {
             return new ConnectionStatusInfo("incoming_request", c.getId());
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, ConnectionStatusInfo> getBatchConnectionStatusInfo(String eventId, String viewerId) {
+        if (viewerId == null) return Map.of();
+        List<ConnectionEntity> list = connectionRepository.findAllByAttendee(eventId, viewerId);
+        Map<String, ConnectionStatusInfo> map = new HashMap<>();
+        for (ConnectionEntity c : list) {
+            String otherId = c.getSenderId().equals(viewerId) ? c.getReceiverId() : c.getSenderId();
+            if ("connected".equalsIgnoreCase(c.getStatus())) {
+                map.put(otherId, new ConnectionStatusInfo("connected", c.getId()));
+            } else if (c.getSenderId().equals(viewerId)) {
+                map.put(otherId, new ConnectionStatusInfo("pending", c.getId()));
+            } else {
+                map.put(otherId, new ConnectionStatusInfo("incoming_request", c.getId()));
+            }
+        }
+        return map;
     }
 
     public static class ConnectionStatusInfo {

@@ -77,7 +77,34 @@ public class OrganizerController {
                 page,
                 size
         );
+        long total = organizerService.countAttendees(
+                principal.getEventId(),
+                query,
+                category,
+                checkedInOnly
+        );
+        return ResponseEntity.ok()
+                .header("X-Total-Count", String.valueOf(total))
+                .header("Access-Control-Expose-Headers", "X-Total-Count")
+                .body(list);
+    }
+
+    @GetMapping("/exhibitors")
+    public ResponseEntity<List<OrganizerExhibitorDto>> getExhibitors(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal
+    ) {
+        List<OrganizerExhibitorDto> list = organizerService.getExhibitors(principal.getEventId());
         return ResponseEntity.ok(list);
+    }
+
+    @PutMapping("/attendees/{id}")
+    public ResponseEntity<AttendeeProfileDto> updateAttendee(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable("id") String id,
+            @RequestBody com.eventsphere.modules.attendee.dto.UpdateProfileRequest request
+    ) {
+        AttendeeProfileDto profile = organizerService.updateAttendee(principal.getEventId(), id, request);
+        return ResponseEntity.ok(profile);
     }
 
     @PostMapping("/sessions")

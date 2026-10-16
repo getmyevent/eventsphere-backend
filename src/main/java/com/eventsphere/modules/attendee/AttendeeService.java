@@ -6,6 +6,9 @@ import com.eventsphere.modules.attendee.dto.*;
 import com.eventsphere.modules.attendee.model.AttendeeCategory;
 import com.eventsphere.modules.attendee.model.PrivacyPreset;
 import com.eventsphere.modules.connection.ConnectionService;
+import com.eventsphere.modules.exhibitor.ExhibitorRepository;
+import com.eventsphere.modules.exhibitor.SavedExhibitorEntity;
+import com.eventsphere.modules.exhibitor.SavedExhibitorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -25,17 +28,23 @@ public class AttendeeService {
     private final AttendeeRepository attendeeRepository;
     private final PrivacyConsentRepository privacyConsentRepository;
     private final SavedPersonRepository savedPersonRepository;
+    private final SavedExhibitorRepository savedExhibitorRepository;
+    private final ExhibitorRepository exhibitorRepository;
     private final ConnectionService connectionService;
 
     public AttendeeService(
             AttendeeRepository attendeeRepository,
             PrivacyConsentRepository privacyConsentRepository,
             SavedPersonRepository savedPersonRepository,
+            SavedExhibitorRepository savedExhibitorRepository,
+            ExhibitorRepository exhibitorRepository,
             ConnectionService connectionService
     ) {
         this.attendeeRepository = attendeeRepository;
         this.privacyConsentRepository = privacyConsentRepository;
         this.savedPersonRepository = savedPersonRepository;
+        this.savedExhibitorRepository = savedExhibitorRepository;
+        this.exhibitorRepository = exhibitorRepository;
         this.connectionService = connectionService;
     }
 
@@ -58,22 +67,28 @@ public class AttendeeService {
         List<AttendeeEntity> attendees;
         if (category != null && !category.isBlank()) {
             AttendeeCategory cat = AttendeeCategory.fromValue(category);
-            attendees = attendeeRepository.searchCandidatesByCategories(eventId, searchQuery, List.of(cat), pageable);
+            attendees = attendeeRepository.searchCandidatesByCategories(eventId, viewerId, searchQuery, List.of(cat), pageable);
         } else {
             // Include all attendees except EXHIBITOR_STAFF or show all
-            attendees = attendeeRepository.searchCandidates(eventId, searchQuery, AttendeeCategory.EXHIBITOR_STAFF, pageable);
+            attendees = attendeeRepository.searchCandidates(eventId, viewerId, searchQuery, AttendeeCategory.EXHIBITOR_STAFF, pageable);
         }
 
         Set<String> savedPersonIds = savedPersonRepository.findAllByAttendeeId(viewerId).stream()
                 .map(SavedPersonEntity::getTargetPersonId)
                 .collect(Collectors.toSet());
 
+        Map<String, ConnectionService.ConnectionStatusInfo> batchConnInfo =
+                connectionService.getBatchConnectionStatusInfo(eventId, viewerId);
+
+        ConnectionService.ConnectionStatusInfo defaultNoneConn =
+                new ConnectionService.ConnectionStatusInfo("none", null);
+
         return attendees.stream()
                 .filter(a -> !a.getId().equals(viewerId)) // Filter out self
                 .filter(a -> !savedOnly || savedPersonIds.contains(a.getId()))
                 .map(a -> {
                     ConnectionService.ConnectionStatusInfo connInfo =
-                            connectionService.getConnectionStatusInfo(eventId, viewerId, a.getId());
+                            batchConnInfo.getOrDefault(a.getId(), defaultNoneConn);
                     boolean isSaved = savedPersonIds.contains(a.getId());
                     return toProfileDto(a, viewerId, connInfo, isSaved);
                 })
@@ -115,11 +130,66 @@ public class AttendeeService {
             attendee.setNormalizedMobile(digits);
         }
 
+        if (request.getSkills() != null) {
+            attendee.setSkillsList(request.getSkills());
+        }
+        if (request.getInterests() != null) {
+            attendee.setInterestsList(request.getInterests());
+        }
+        if (request.getTicketType() != null && !request.getTicketType().isBlank()) {
+            attendee.setTicketType(request.getTicketType().trim());
+        }
+        if (request.getCategory() != null && !request.getCategory().isBlank()) {
+            attendee.setCategory(AttendeeCategory.fromValue(request.getCategory()));
+        }
+
         AttendeeEntity saved = attendeeRepository.save(attendee);
         log.info("Updated profile for attendee {}", viewerId);
 
         ConnectionService.ConnectionStatusInfo connInfo = new ConnectionService.ConnectionStatusInfo("none", null);
         return toProfileDto(saved, viewerId, connInfo, false);
+    }
+
+    public AttendeeProfileDto updateAttendee(String eventId, String attendeeId, UpdateProfileRequest request) {
+        AttendeeEntity attendee = attendeeRepository.findByIdAndEventId(attendeeId, eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attendee", attendeeId));
+
+        if (request.getName() != null && !request.getName().isBlank()) attendee.setName(request.getName().trim());
+        if (request.getDesignation() != null) attendee.setDesignation(request.getDesignation().trim());
+        if (request.getCompany() != null) attendee.setCompany(request.getCompany().trim());
+        if (request.getBio() != null) attendee.setBio(request.getBio().trim());
+        if (request.getAvatar() != null) attendee.setAvatarUrl(request.getAvatar().trim());
+        if (request.getLinkedin() != null) attendee.setLinkedinUrl(request.getLinkedin().trim());
+        if (request.getTwitter() != null) attendee.setTwitterUrl(request.getTwitter().trim());
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            attendee.setEmail(request.getEmail().trim().toLowerCase());
+        }
+        if (request.getMobile() != null && !request.getMobile().isBlank()) {
+            attendee.setMobile(request.getMobile().trim());
+            String digits = request.getMobile().replaceAll("\\D", "");
+            if (digits.startsWith("91") && digits.length() > 10) digits = digits.substring(2);
+            if (digits.startsWith("0")) digits = digits.substring(1);
+            attendee.setNormalizedMobile(digits);
+        }
+        if (request.getSkills() != null) {
+            attendee.setSkillsList(request.getSkills());
+        }
+        if (request.getInterests() != null) {
+            attendee.setInterestsList(request.getInterests());
+        }
+        if (request.getTicketType() != null && !request.getTicketType().isBlank()) {
+            attendee.setTicketType(request.getTicketType().trim());
+        }
+        if (request.getCategory() != null && !request.getCategory().isBlank()) {
+            attendee.setCategory(AttendeeCategory.fromValue(request.getCategory()));
+        }
+
+        AttendeeEntity saved = attendeeRepository.save(attendee);
+        log.info("Updated attendee record for {}", attendeeId);
+
+        ConnectionService.ConnectionStatusInfo connInfo = new ConnectionService.ConnectionStatusInfo("none", null);
+        return toProfileDto(saved, attendeeId, connInfo, false);
     }
 
     public PrivacyConsentDto updateMyPrivacy(String viewerId, UpdatePrivacyRequest request) {
@@ -185,6 +255,31 @@ public class AttendeeService {
         }).collect(Collectors.toList());
     }
 
+    public void saveExhibitor(String viewerId, String targetExhibitorId) {
+        if (!exhibitorRepository.existsById(targetExhibitorId)) {
+            throw new ResourceNotFoundException("Exhibitor", targetExhibitorId);
+        }
+        if (!savedExhibitorRepository.existsByAttendeeIdAndTargetExhibitorId(viewerId, targetExhibitorId)) {
+            savedExhibitorRepository.save(new SavedExhibitorEntity(viewerId, targetExhibitorId));
+            log.info("Attendee {} saved exhibitor {}", viewerId, targetExhibitorId);
+        }
+    }
+
+    public void unsaveExhibitor(String viewerId, String targetExhibitorId) {
+        if (!exhibitorRepository.existsById(targetExhibitorId)) {
+            throw new ResourceNotFoundException("Exhibitor", targetExhibitorId);
+        }
+        savedExhibitorRepository.deleteByAttendeeIdAndTargetExhibitorId(viewerId, targetExhibitorId);
+        log.info("Attendee {} unsaved exhibitor {}", viewerId, targetExhibitorId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getSavedExhibitorIds(String viewerId) {
+        return savedExhibitorRepository.findAllByAttendeeId(viewerId).stream()
+                .map(SavedExhibitorEntity::getTargetExhibitorId)
+                .collect(Collectors.toList());
+    }
+
     // Privacy Masking Enforcement
     private AttendeeProfileDto toProfileDto(
             AttendeeEntity target,
@@ -194,9 +289,10 @@ public class AttendeeService {
     ) {
         boolean isSelf = target.getId().equals(viewerId);
         boolean isConnected = "connected".equalsIgnoreCase(connInfo.getStatus());
+        boolean isSpeaker = target.getCategory() == AttendeeCategory.SPEAKER;
 
         PrivacyConsentEntity privacy = target.getPrivacyConsent();
-        PrivacyPreset preset = (privacy != null) ? privacy.getPreset() : PrivacyPreset.CONNECTIONS_ONLY;
+        PrivacyPreset preset = (privacy != null) ? privacy.getPreset() : (isSpeaker ? PrivacyPreset.OPEN : PrivacyPreset.CONNECTIONS_ONLY);
 
         boolean canShareEmail;
         boolean canSharePhone;
@@ -208,6 +304,11 @@ public class AttendeeService {
             canSharePhone = true;
             canShareLinkedIn = true;
             canShareTwitter = true;
+        } else if (isSpeaker) {
+            canShareEmail = (privacy != null) && privacy.isShareEmail();
+            canSharePhone = (privacy != null) && privacy.isSharePhone();
+            canShareLinkedIn = target.getLinkedinUrl() != null;
+            canShareTwitter = target.getTwitterUrl() != null;
         } else if (preset == PrivacyPreset.CONNECTIONS_ONLY) {
             if (isConnected) {
                 canShareEmail = (privacy == null) || privacy.isShareEmail();
@@ -263,8 +364,8 @@ public class AttendeeService {
                 connInfo.getStatus(),
                 connInfo.getConnectionId(),
                 isSaved,
-                List.of(), // skills
-                List.of()  // interests
+                target.getSkillsList(),
+                target.getInterestsList()
         );
     }
 }

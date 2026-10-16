@@ -33,6 +33,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.stream.Collectors;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -85,9 +86,17 @@ public class OrganizerService {
         long totalLeads = leadRepository.countByEventId(eventId);
 
         List<ExhibitorEntity> exhibitors = exhibitorRepository.findAllByEventId(eventId);
+        List<Object[]> leadCountsGrouped = leadRepository.countLeadsGroupedByExhibitor(eventId);
+        Map<String, Long> leadCountMap = leadCountsGrouped.stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        (existing, replacement) -> existing
+                ));
+
         List<TopExhibitorDto> topExhibitors = exhibitors.stream()
                 .map(e -> {
-                    long leads = leadRepository.countByExhibitorId(e.getId());
+                    long leads = leadCountMap.getOrDefault(e.getId(), 0L);
                     return new TopExhibitorDto(e.getId(), e.getCompany(), e.getBooth(), e.getCategory(), leads);
                 })
                 .sorted((a, b) -> Long.compare(b.leads(), a.leads()))
@@ -141,7 +150,7 @@ public class OrganizerService {
         }
 
         String attendeeId = "att-walkin-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-        String regId = "#WLK-" + (1000 + new Random().nextInt(9000));
+        String regId = "#WLK-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
 
         AttendeeCategory category = AttendeeCategory.DELEGATE;
         if (request.category() != null && !request.category().isBlank()) {
@@ -180,7 +189,6 @@ public class OrganizerService {
         return mapToAttendeeDto(attendee);
     }
 
-    @Transactional
     public ImportResultDto importAttendees(String eventId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("CSV file cannot be empty");
@@ -232,8 +240,19 @@ public class OrganizerService {
                     continue;
                 }
 
+                AttendeeCategory category = AttendeeCategory.DELEGATE;
+                if (parts.length > 6 && !cleanField(parts[6]).isBlank()) {
+                    try {
+                        category = AttendeeCategory.fromValue(cleanField(parts[6]));
+                    } catch (Exception ex) {
+                        category = AttendeeCategory.DELEGATE;
+                    }
+                }
+
                 String attendeeId = "att-imp-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-                String regId = "#IMP-" + (1000 + new Random().nextInt(9000));
+                String regId = (parts.length > 7 && !cleanField(parts[7]).isBlank())
+                        ? cleanField(parts[7])
+                        : String.format("#IMP-%05d-%s", processed, UUID.randomUUID().toString().replace("-", "").substring(0, 4).toUpperCase());
 
                 AttendeeEntity attendee = new AttendeeEntity();
                 attendee.setId(attendeeId);
@@ -246,7 +265,7 @@ public class OrganizerService {
                 attendee.setCompany(company);
                 attendee.setDesignation(designation);
                 attendee.setTicketType(ticketType.isBlank() ? "Delegate Pass" : ticketType);
-                attendee.setCategory(AttendeeCategory.DELEGATE);
+                attendee.setCategory(category);
                 attendee.setAuthRole(UserRole.ROLE_DELEGATE);
                 attendee.setCheckedIn(false);
 
@@ -254,8 +273,13 @@ public class OrganizerService {
                 priv.setAttendee(attendee);
                 attendee.setPrivacyConsent(priv);
 
-                attendeeRepository.save(attendee);
-                imported++;
+                try {
+                    attendeeRepository.save(attendee);
+                    imported++;
+                } catch (Exception rowEx) {
+                    skipped++;
+                    errors.add("Row " + processed + " (" + name + "): save failed - " + rowEx.getMessage());
+                }
             }
         } catch (Exception e) {
             log.error("Failed to parse import CSV", e);
@@ -264,6 +288,48 @@ public class OrganizerService {
 
         log.info("Imported {} attendees for event {} (processed={}, skipped={})", imported, eventId, processed, skipped);
         return new ImportResultDto(processed, imported, skipped, errors);
+    }
+
+    @Transactional
+    public AttendeeProfileDto updateAttendee(String eventId, String attendeeId, com.eventsphere.modules.attendee.dto.UpdateProfileRequest request) {
+        AttendeeEntity attendee = attendeeRepository.findByIdAndEventId(attendeeId, eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attendee", attendeeId));
+
+        if (request.getName() != null && !request.getName().isBlank()) attendee.setName(request.getName().trim());
+        if (request.getDesignation() != null) attendee.setDesignation(request.getDesignation().trim());
+        if (request.getCompany() != null) attendee.setCompany(request.getCompany().trim());
+        if (request.getBio() != null) attendee.setBio(request.getBio().trim());
+        if (request.getAvatar() != null) attendee.setAvatarUrl(request.getAvatar().trim());
+        if (request.getLinkedin() != null) attendee.setLinkedinUrl(request.getLinkedin().trim());
+        if (request.getTwitter() != null) attendee.setTwitterUrl(request.getTwitter().trim());
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            attendee.setEmail(request.getEmail().trim().toLowerCase());
+        }
+        if (request.getMobile() != null && !request.getMobile().isBlank()) {
+            attendee.setMobile(request.getMobile().trim());
+            String digits = request.getMobile().replaceAll("\\D", "");
+            if (digits.startsWith("91") && digits.length() > 10) digits = digits.substring(2);
+            if (digits.startsWith("0")) digits = digits.substring(1);
+            attendee.setNormalizedMobile(digits);
+        }
+        if (request.getSkills() != null) {
+            attendee.setSkillsList(request.getSkills());
+        }
+        if (request.getInterests() != null) {
+            attendee.setInterestsList(request.getInterests());
+        }
+        if (request.getTicketType() != null && !request.getTicketType().isBlank()) {
+            attendee.setTicketType(request.getTicketType().trim());
+        }
+        if (request.getCategory() != null && !request.getCategory().isBlank()) {
+            attendee.setCategory(AttendeeCategory.fromValue(request.getCategory()));
+        }
+
+        AttendeeEntity saved = attendeeRepository.save(attendee);
+        log.info("Organizer updated attendee record for {}", attendeeId);
+
+        return mapToAttendeeDto(saved);
     }
 
     @Transactional(readOnly = true)
@@ -275,37 +341,41 @@ public class OrganizerService {
             int page,
             int size
     ) {
-        List<AttendeeEntity> all = attendeeRepository.findAllByEventId(eventId);
+        int sanitizedPage = Math.max(page, 0);
+        int sanitizedSize = (size > 0 && size <= 100) ? size : 30;
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(sanitizedPage, sanitizedSize);
 
-        return all.stream()
-                .filter(a -> {
-                    if (query == null || query.isBlank()) return true;
-                    String q = query.trim().toLowerCase();
-                    boolean inName = a.getName() != null && a.getName().toLowerCase().contains(q);
-                    boolean inComp = a.getCompany() != null && a.getCompany().toLowerCase().contains(q);
-                    boolean inDesig = a.getDesignation() != null && a.getDesignation().toLowerCase().contains(q);
-                    boolean inEmail = a.getEmail() != null && a.getEmail().toLowerCase().contains(q);
-                    boolean inReg = a.getRegistrationId() != null && a.getRegistrationId().toLowerCase().contains(q);
-                    return inName || inComp || inDesig || inEmail || inReg;
-                })
-                .filter(a -> {
-                    if (category == null || category.isBlank() || "all".equalsIgnoreCase(category.trim())) return true;
-                    return a.getCategory().name().equalsIgnoreCase(category.trim());
-                })
-                .filter(a -> {
-                    if (Boolean.TRUE.equals(checkedInOnly)) {
-                        return a.isCheckedIn();
-                    }
-                    return true;
-                })
-                .sorted(Comparator.comparing(AttendeeEntity::getName))
-                .skip((long) page * size)
-                .limit(size)
-                .map(this::mapToAttendeeDto)
-                .toList();
+        String q = (query != null && !query.isBlank()) ? query.trim() : null;
+        AttendeeCategory cat = (category != null && !category.isBlank() && !"all".equalsIgnoreCase(category.trim()))
+                ? AttendeeCategory.fromValue(category.trim())
+                : null;
+
+        List<AttendeeEntity> list = attendeeRepository.searchAttendeesForOrganizer(eventId, q, cat, checkedInOnly, pageable);
+        return list.stream().map(this::mapToAttendeeDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long countAttendees(
+            String eventId,
+            String query,
+            String category,
+            Boolean checkedInOnly
+    ) {
+        String q = (query != null && !query.isBlank()) ? query.trim() : null;
+        AttendeeCategory cat = (category != null && !category.isBlank() && !"all".equalsIgnoreCase(category.trim()))
+                ? AttendeeCategory.fromValue(category.trim())
+                : null;
+
+        return attendeeRepository.countAttendeesForOrganizer(eventId, q, cat, checkedInOnly);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrganizerExhibitorDto> getExhibitors(String eventId) {
+        return exhibitorRepository.findExhibitorsWithLeadCount(eventId);
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "sessions", allEntries = true)
     public SessionDto createSession(String eventId, CreateSessionRequest request) {
         String sessionId = "sess_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
 
@@ -333,6 +403,7 @@ public class OrganizerService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "sessions", allEntries = true)
     public SessionDto updateSession(String sessionId, UpdateSessionRequest request) {
         SessionEntity session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
@@ -356,6 +427,7 @@ public class OrganizerService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "sessions", allEntries = true)
     public SessionDto updateSessionStatus(String sessionId, String status) {
         SessionEntity session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Session not found: " + sessionId));
@@ -373,6 +445,7 @@ public class OrganizerService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "sessions", allEntries = true)
     public void deleteSession(String sessionId) {
         if (!sessionRepository.existsById(sessionId)) {
             throw new ResourceNotFoundException("Session not found: " + sessionId);
@@ -434,12 +507,14 @@ public class OrganizerService {
                 "none",
                 null,
                 false,
-                List.of(),
-                List.of()
+                a.getSkillsList(),
+                a.getInterestsList()
         );
     }
 
     private SessionDto mapToSessionDto(SessionEntity s) {
+        List<String> speakerIds = readStringList(s.getSpeakerIdsJson());
+        String speakerId = speakerIds.isEmpty() ? null : speakerIds.get(0);
         return new SessionDto(
                 s.getId(),
                 s.getTitle(),
@@ -451,7 +526,8 @@ public class OrganizerService {
                 s.getSpeakerName(),
                 s.getSpeakerDesignation(),
                 s.getSpeakerCompany(),
-                null,
+                speakerId,
+                speakerIds,
                 s.getDescription(),
                 readStringList(s.getTakeawaysJson()),
                 s.getStatus(),

@@ -15,6 +15,7 @@ public record SessionDto(
         String speakerDesignation,
         String speakerCompany,
         String speakerId,
+        List<String> speakerIds,
         String description,
         List<String> takeaways,
         String status,

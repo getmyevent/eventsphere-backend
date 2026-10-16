@@ -27,6 +27,9 @@ public interface LeadRepository extends JpaRepository<LeadEntity, String> {
     @Query("SELECT COUNT(l) FROM LeadEntity l WHERE l.exhibitor.eventId = :eventId")
     long countByEventId(@Param("eventId") String eventId);
 
+    @Query("SELECT l.exhibitorId, COUNT(l) FROM LeadEntity l WHERE l.exhibitor.eventId = :eventId GROUP BY l.exhibitorId")
+    List<Object[]> countLeadsGroupedByExhibitor(@Param("eventId") String eventId);
+
     @Query("""
         SELECT l FROM LeadEntity l
         JOIN FETCH l.attendee a

@@ -34,6 +34,7 @@ public interface AttendeeRepository extends JpaRepository<AttendeeEntity, String
         LEFT JOIN FETCH a.privacyConsent
         WHERE a.eventId = :eventId
           AND a.category != :excludedCategory
+          AND (:viewerId IS NULL OR a.id != :viewerId)
           AND (:query IS NULL OR :query = '' OR (
               LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%')) OR
               LOWER(a.company) LIKE LOWER(CONCAT('%', :query, '%')) OR
@@ -44,6 +45,7 @@ public interface AttendeeRepository extends JpaRepository<AttendeeEntity, String
     """)
     List<AttendeeEntity> searchCandidates(
         @Param("eventId") String eventId,
+        @Param("viewerId") String viewerId,
         @Param("query") String query,
         @Param("excludedCategory") AttendeeCategory excludedCategory,
         Pageable pageable
@@ -54,6 +56,7 @@ public interface AttendeeRepository extends JpaRepository<AttendeeEntity, String
         LEFT JOIN FETCH a.privacyConsent
         WHERE a.eventId = :eventId
           AND a.category IN :categories
+          AND (:viewerId IS NULL OR a.id != :viewerId)
           AND (:query IS NULL OR :query = '' OR (
               LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%')) OR
               LOWER(a.company) LIKE LOWER(CONCAT('%', :query, '%')) OR
@@ -64,8 +67,52 @@ public interface AttendeeRepository extends JpaRepository<AttendeeEntity, String
     """)
     List<AttendeeEntity> searchCandidatesByCategories(
         @Param("eventId") String eventId,
+        @Param("viewerId") String viewerId,
         @Param("query") String query,
         @Param("categories") List<AttendeeCategory> categories,
         Pageable pageable
+    );
+
+    @Query("""
+        SELECT a FROM AttendeeEntity a
+        LEFT JOIN FETCH a.privacyConsent
+        WHERE a.eventId = :eventId
+          AND (:category IS NULL OR a.category = :category)
+          AND (:checkedInOnly IS NULL OR :checkedInOnly = FALSE OR a.checkedIn = TRUE)
+          AND (:query IS NULL OR :query = '' OR (
+              LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.company) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.designation) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.email) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.registrationId) LIKE LOWER(CONCAT('%', :query, '%'))
+          ))
+        ORDER BY a.name ASC
+    """)
+    List<AttendeeEntity> searchAttendeesForOrganizer(
+        @Param("eventId") String eventId,
+        @Param("query") String query,
+        @Param("category") AttendeeCategory category,
+        @Param("checkedInOnly") Boolean checkedInOnly,
+        Pageable pageable
+    );
+
+    @Query("""
+        SELECT COUNT(a) FROM AttendeeEntity a
+        WHERE a.eventId = :eventId
+          AND (:category IS NULL OR a.category = :category)
+          AND (:checkedInOnly IS NULL OR :checkedInOnly = FALSE OR a.checkedIn = TRUE)
+          AND (:query IS NULL OR :query = '' OR (
+              LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.company) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.designation) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.email) LIKE LOWER(CONCAT('%', :query, '%')) OR
+              LOWER(a.registrationId) LIKE LOWER(CONCAT('%', :query, '%'))
+          ))
+    """)
+    long countAttendeesForOrganizer(
+        @Param("eventId") String eventId,
+        @Param("query") String query,
+        @Param("category") AttendeeCategory category,
+        @Param("checkedInOnly") Boolean checkedInOnly
     );
 }

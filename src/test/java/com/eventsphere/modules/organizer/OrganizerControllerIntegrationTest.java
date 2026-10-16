@@ -315,6 +315,30 @@ class OrganizerControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("Should bulk import 5,000 rows without any registration id collisions")
+    void shouldImport5000AttendeesWithoutCollision() throws Exception {
+        StringBuilder csvBuilder = new StringBuilder("name,email,mobile,company,designation,ticketType,category\n");
+        for (int i = 1; i <= 5000; i++) {
+            csvBuilder.append(String.format("User %d,user%d@scale.org,91%08d,Scale Corp,Engineer,Delegate Pass,delegate\n", i, i, i));
+        }
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "large_batch.csv",
+                "text/csv",
+                csvBuilder.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/v1/organizer/attendees/import")
+                        .file(file)
+                        .header("Authorization", "Bearer " + tokenOrganizer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalProcessed").value(5000))
+                .andExpect(jsonPath("$.totalImported").value(5000))
+                .andExpect(jsonPath("$.totalSkipped").value(0));
+    }
+
+    @Test
     @DisplayName("Should create session, update details, change status to live, and delete cleanly")
     void shouldCreateUpdateAndChangeSessionStatus() throws Exception {
         // 1. Create Session

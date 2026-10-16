@@ -21,10 +21,13 @@ public class JwtService {
     private final long expirationMs;
 
     public JwtService(
-            @Value("${eventsphere.jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}") String secret,
-            @Value("${eventsphere.jwt.expiration-ms:86400000}") long expirationMs
+            @Value("${eventsphere.jwt.secret}") String secret,
+            @Value("${eventsphere.jwt.expiration-ms:259200000}") long expirationMs
     ) {
-        this.secret = secret;
+        if (secret == null || secret.trim().length() < 32) {
+            throw new IllegalArgumentException("JWT secret must be configured and at least 256 bits (32 bytes) long");
+        }
+        this.secret = secret.trim();
         this.expirationMs = expirationMs;
     }
 

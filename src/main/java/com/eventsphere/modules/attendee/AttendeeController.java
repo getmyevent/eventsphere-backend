@@ -24,16 +24,20 @@ public class AttendeeController {
     public ResponseEntity<List<AttendeeProfileDto>> getDirectory(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
             @RequestParam(required = false) String query,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String role,
             @RequestParam(defaultValue = "false") boolean savedOnly,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "30") int size
+            @RequestParam(defaultValue = "100") int size
     ) {
+        String effectiveQuery = (query != null && !query.isBlank()) ? query : search;
+        String effectiveCategory = (category != null && !category.isBlank()) ? category : role;
         List<AttendeeProfileDto> list = attendeeService.getDirectory(
                 principal.getEventId(),
                 principal.getAttendeeId(),
-                query,
-                category,
+                effectiveQuery,
+                effectiveCategory,
                 savedOnly,
                 page,
                 size
@@ -117,6 +121,32 @@ public class AttendeeController {
                 principal.getEventId(),
                 principal.getAttendeeId()
         );
+        return ResponseEntity.ok(list);
+    }
+
+    @PostMapping("/saved-exhibitors/{exhibitorId}")
+    public ResponseEntity<Map<String, Boolean>> saveExhibitor(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable String exhibitorId
+    ) {
+        attendeeService.saveExhibitor(principal.getAttendeeId(), exhibitorId);
+        return ResponseEntity.ok(Map.of("saved", true));
+    }
+
+    @DeleteMapping("/saved-exhibitors/{exhibitorId}")
+    public ResponseEntity<Map<String, Boolean>> unsaveExhibitor(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable String exhibitorId
+    ) {
+        attendeeService.unsaveExhibitor(principal.getAttendeeId(), exhibitorId);
+        return ResponseEntity.ok(Map.of("saved", false));
+    }
+
+    @GetMapping("/saved-exhibitors")
+    public ResponseEntity<List<String>> getSavedExhibitorIds(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal
+    ) {
+        List<String> list = attendeeService.getSavedExhibitorIds(principal.getAttendeeId());
         return ResponseEntity.ok(list);
     }
 }

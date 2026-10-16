@@ -12,6 +12,7 @@ import com.eventsphere.modules.auth.dto.AccessRequest;
 import com.eventsphere.modules.event.EventEntity;
 import com.eventsphere.modules.event.EventRepository;
 import com.eventsphere.modules.session.dto.CreateQuestionRequest;
+import com.eventsphere.modules.session.dto.PollDto;
 import com.eventsphere.modules.session.dto.VotePollRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,6 +75,9 @@ class SessionControllerIntegrationTest {
 
     @Autowired
     private PollVoteRepository pollVoteRepository;
+
+    @Autowired
+    private PollService pollService;
 
     @Autowired
     private RateLimiterService rateLimiterService;
@@ -186,11 +190,11 @@ class SessionControllerIntegrationTest {
         poll1.setQuestion("Which domain holds highest potential for MP?");
         poll1.setStatus("open");
         poll1.setTotalVotes(0);
-        pollRepository.save(poll1);
+        PollEntity savedPoll1 = pollRepository.save(poll1);
 
         PollOptionEntity opt1 = new PollOptionEntity();
         opt1.setId("opt-test-01-a");
-        opt1.setPoll(poll1);
+        opt1.setPoll(savedPoll1);
         opt1.setText("Fabless Chip Design");
         opt1.setVotes(0);
         opt1.setSortOrder(1);
@@ -198,7 +202,7 @@ class SessionControllerIntegrationTest {
 
         PollOptionEntity opt2 = new PollOptionEntity();
         opt2.setId("opt-test-01-b");
-        opt2.setPoll(poll1);
+        opt2.setPoll(savedPoll1);
         opt2.setText("Advanced ATMP Packaging");
         opt2.setVotes(0);
         opt2.setSortOrder(2);
@@ -210,11 +214,11 @@ class SessionControllerIntegrationTest {
         poll2.setQuestion("Is campus EDA training adequate?");
         poll2.setStatus("open");
         poll2.setTotalVotes(0);
-        pollRepository.save(poll2);
+        PollEntity savedPoll2 = pollRepository.save(poll2);
 
         PollOptionEntity opt2_1 = new PollOptionEntity();
         opt2_1.setId("opt-test-02-a");
-        opt2_1.setPoll(poll2);
+        opt2_1.setPoll(savedPoll2);
         opt2_1.setText("Needs Major Upgrade");
         opt2_1.setVotes(0);
         opt2_1.setSortOrder(1);
@@ -473,5 +477,44 @@ class SessionControllerIntegrationTest {
                 .andExpect(jsonPath("$.totalVotes").value(0))
                 .andExpect(jsonPath("$.hasVoted").value(false))
                 .andExpect(jsonPath("$.votedOptionId").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Concurrent poll votes across multiple threads maintain exact atomic consistency")
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void shouldHandleConcurrentPollVotesConsistently() throws Exception {
+        int userCount = 50;
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(10);
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(userCount);
+
+        try {
+            for (int i = 0; i < userCount; i++) {
+                final int idx = i;
+                executor.submit(() -> {
+                    try {
+                        String attendeeId = "att-concurrent-" + idx;
+                        String optionId = (idx % 2 == 0) ? "opt-test-01-a" : "opt-test-01-b";
+                        pollService.vote("poll-test-01", new VotePollRequest(optionId), attendeeId);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+
+            boolean finished = latch.await(15, java.util.concurrent.TimeUnit.SECONDS);
+            executor.shutdown();
+            assertThat(finished).isTrue();
+
+            PollDto poll = pollService.getPollById("poll-test-01", null);
+            int optionSum = poll.options().stream().mapToInt(com.eventsphere.modules.session.dto.PollOptionDto::votes).sum();
+            assertThat(poll.totalVotes()).isEqualTo(userCount);
+            assertThat(poll.totalVotes()).isEqualTo(optionSum);
+        } finally {
+            pollVoteRepository.deleteAll();
+            pollOptionRepository.deleteAll();
+            pollRepository.deleteAll();
+        }
     }
 }

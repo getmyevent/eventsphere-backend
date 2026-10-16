@@ -47,6 +47,9 @@ public class SessionEntity {
     @Column(name = "takeaways_json", columnDefinition = "JSON")
     private String takeawaysJson;
 
+    @Column(name = "speaker_ids_json", columnDefinition = "JSON")
+    private String speakerIdsJson;
+
     @Column(nullable = false, length = 32)
     private String status = "upcoming";
 
@@ -99,6 +102,9 @@ public class SessionEntity {
 
     public String getTakeawaysJson() { return takeawaysJson; }
     public void setTakeawaysJson(String takeawaysJson) { this.takeawaysJson = takeawaysJson; }
+
+    public String getSpeakerIdsJson() { return speakerIdsJson; }
+    public void setSpeakerIdsJson(String speakerIdsJson) { this.speakerIdsJson = speakerIdsJson; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

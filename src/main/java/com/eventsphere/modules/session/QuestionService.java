@@ -15,7 +15,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class QuestionService {
+public class QuestionService
+{
 
     private static final Logger log = LoggerFactory.getLogger(QuestionService.class);
 
@@ -53,6 +54,7 @@ public class QuestionService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "sessions", allEntries = true)
     public QuestionDto submitQuestion(
             String sessionId,
             CreateQuestionRequest request,
@@ -82,9 +84,8 @@ public class QuestionService {
 
         questionRepository.save(question);
 
-        // Update session questions count
-        session.setQuestionsCount(session.getQuestionsCount() + 1);
-        sessionRepository.save(session);
+        // Update session questions count atomically
+        sessionRepository.incrementQuestionsCount(sessionId);
 
         log.info("Submitted question {} in session {} by attendee {}", questionId, sessionId, attendeeId);
 
@@ -93,24 +94,28 @@ public class QuestionService {
 
     @Transactional
     public UpvoteResponse toggleUpvote(String questionId, String currentAttendeeId) {
-        SessionQuestionEntity question = questionRepository.findById(questionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Question not found: " + questionId));
+        if (!questionRepository.existsById(questionId)) {
+            throw new ResourceNotFoundException("Question not found: " + questionId);
+        }
 
         boolean alreadyUpvoted = upvoteRepository.existsByIdQuestionIdAndIdAttendeeId(questionId, currentAttendeeId);
 
         if (alreadyUpvoted) {
             upvoteRepository.deleteByIdQuestionIdAndIdAttendeeId(questionId, currentAttendeeId);
-            int newCount = Math.max(0, question.getUpvotes() - 1);
-            question.setUpvotes(newCount);
-            questionRepository.save(question);
+            upvoteRepository.flush();
+            questionRepository.decrementUpvotes(questionId);
+            int newCount = Optional.ofNullable(questionRepository.getUpvotesCount(questionId)).orElse(0);
 
             log.info("Attendee {} removed upvote on question {}", currentAttendeeId, questionId);
             return new UpvoteResponse(questionId, newCount, false, "Upvote removed");
         } else {
-            upvoteRepository.save(new QuestionUpvoteEntity(questionId, currentAttendeeId));
-            int newCount = question.getUpvotes() + 1;
-            question.setUpvotes(newCount);
-            questionRepository.save(question);
+            try {
+                upvoteRepository.saveAndFlush(new QuestionUpvoteEntity(questionId, currentAttendeeId));
+                questionRepository.incrementUpvotes(questionId);
+            } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+                log.warn("Concurrent upvote caught for question {} by attendee {}", questionId, currentAttendeeId);
+            }
+            int newCount = Optional.ofNullable(questionRepository.getUpvotesCount(questionId)).orElse(0);
 
             log.info("Attendee {} upvoted question {}", currentAttendeeId, questionId);
             return new UpvoteResponse(questionId, newCount, true, "Question upvoted");

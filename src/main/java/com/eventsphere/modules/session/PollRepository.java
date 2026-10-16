@@ -1,6 +1,9 @@
 package com.eventsphere.modules.session;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -12,4 +15,12 @@ public interface PollRepository extends JpaRepository<PollEntity, String> {
     Optional<PollEntity> findBySessionId(String sessionId);
 
     List<PollEntity> findAllBySessionIdOrderByCreatedAtDesc(String sessionId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE PollEntity p SET p.totalVotes = p.totalVotes + 1 WHERE p.id = :id")
+    int incrementTotalVotes(@Param("id") String id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE PollEntity p SET p.totalVotes = CASE WHEN p.totalVotes > 0 THEN p.totalVotes - 1 ELSE 0 END WHERE p.id = :id")
+    int decrementTotalVotes(@Param("id") String id);
 }

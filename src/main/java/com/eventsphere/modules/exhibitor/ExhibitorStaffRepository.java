@@ -9,7 +9,7 @@ import java.util.Optional;
 @Repository
 public interface ExhibitorStaffRepository extends JpaRepository<ExhibitorStaffEntity, ExhibitorStaffId> {
 
-    Optional<ExhibitorStaffEntity> findByIdAttendeeId(String attendeeId);
+    Optional<ExhibitorStaffEntity> findFirstByIdAttendeeId(String attendeeId);
 
     List<ExhibitorStaffEntity> findAllByIdExhibitorId(String exhibitorId);
 

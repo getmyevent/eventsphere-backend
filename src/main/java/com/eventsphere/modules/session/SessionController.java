@@ -90,7 +90,7 @@ public class SessionController {
         return ResponseEntity.ok(question);
     }
 
-    @PostMapping("/questions/{questionId}/upvote")
+    @RequestMapping(value = "/questions/{questionId}/upvote", method = {RequestMethod.POST, RequestMethod.DELETE})
     public ResponseEntity<UpvoteResponse> toggleUpvote(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
             @PathVariable("questionId") String questionId

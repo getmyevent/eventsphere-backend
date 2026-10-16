@@ -131,8 +131,8 @@ class AuthControllerIntegrationTest {
         orgStaff.setRegistrationId("#REG-ORG-01");
         orgStaff.setName("Summit Operations");
         orgStaff.setEmail("ops@mpss26.org");
-        orgStaff.setMobile("+91 90876 543212");
-        orgStaff.setNormalizedMobile("90876543212");
+        orgStaff.setMobile("+91 98765 43212");
+        orgStaff.setNormalizedMobile("9876543212");
         orgStaff.setCategory(AttendeeCategory.ORGANIZER_STAFF);
         orgStaff.setAuthRole(UserRole.ROLE_ORGANIZER);
         orgStaff.setCompany("MPSEDC Operations");
@@ -177,9 +177,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Organizer login succeeds with alias mobile normalization")
+    @DisplayName("Organizer login succeeds with standard 10-digit mobile number")
     void testOrganizerLoginSuccess() throws Exception {
-        // Test with 9876543212 resolving to 90876543212
         AccessRequest request = new AccessRequest(EVENT_ID, "9876543212");
 
         mockMvc.perform(post("/api/v1/auth/access")

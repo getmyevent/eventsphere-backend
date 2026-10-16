@@ -21,7 +21,7 @@ public class RateLimiterService {
     private final ConcurrentHashMap<String, Deque<Long>> mobileRequestTimestamps = new ConcurrentHashMap<>();
 
     public RateLimiterService(
-            @Value("${eventsphere.security.rate-limit.ip-per-minute:60}") int maxRequestsPerMinutePerIp,
+            @Value("${eventsphere.security.rate-limit.ip-per-minute:600}") int maxRequestsPerMinutePerIp,
             @Value("${eventsphere.security.rate-limit.mobile-per-minute:10}") int maxRequestsPerMinutePerMobile
     ) {
         this.maxRequestsPerMinutePerIp = maxRequestsPerMinutePerIp;
@@ -68,6 +68,7 @@ public class RateLimiterService {
     }
 
     // Periodic purge of empty/stale entries every 5 minutes to prevent memory leak
+    @Scheduled(fixedRate = 300_000L)
     public void cleanupStaleEntries() {
         long fiveMinutesAgo = Instant.now().toEpochMilli() - 300_000L;
 

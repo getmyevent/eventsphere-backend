@@ -6,9 +6,14 @@ spring:
   threads:
     virtual:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
 
 server:
-  port: 8080
+  port: ${PORT:8080}
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:framework}
   servlet:
     context-path: /
 
@@ -16,17 +21,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
       probes:
         enabled: true
 
 eventsphere:
   jwt:
-    secret: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970" # 256-bit dev secret
-    expiration-ms: 86400000 # 24 hours
+    secret: "${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}" # 256-bit dev secret
+    expiration-ms: ${JWT_EXPIRATION_MS:259200000} # 72 hours (3 days)
   security:
     cors:
       allowed-origins:
