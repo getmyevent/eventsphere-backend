@@ -4,6 +4,7 @@ import com.eventsphere.common.error.ResourceNotFoundException;
 import com.eventsphere.common.security.EventSphereUserPrincipal;
 import com.eventsphere.common.security.JwtService;
 import com.eventsphere.common.security.RateLimiterService;
+import com.eventsphere.common.util.MobileNormalizer;
 import com.eventsphere.modules.attendee.AttendeeEntity;
 import com.eventsphere.modules.attendee.AttendeeRepository;
 import com.eventsphere.modules.attendee.model.AttendeeCategory;
@@ -15,6 +16,8 @@ import com.eventsphere.modules.exhibitor.ExhibitorEntity;
 import com.eventsphere.modules.exhibitor.ExhibitorRepository;
 import com.eventsphere.modules.exhibitor.ExhibitorStaffEntity;
 import com.eventsphere.modules.exhibitor.ExhibitorStaffRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,8 @@ import java.util.Optional;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final AttendeeRepository attendeeRepository;
     private final ExhibitorStaffRepository exhibitorStaffRepository;
@@ -43,10 +48,13 @@ public class AuthService {
         this.rateLimiterService = rateLimiterService;
     }
 
-    @Transactional(readOnly = true)
     public AccessResponse authenticate(AccessRequest request, String clientIp) {
-        // 1. Rate limiting check
+        long tTotal0 = System.nanoTime();
+
+        // 1. Rate limiting check (in-memory)
+        long tRateLimit0 = System.nanoTime();
         rateLimiterService.checkRateLimit(clientIp, request.getMobile());
+        long rateLimitMs = (System.nanoTime() - tRateLimit0) / 1_000_000;
 
         // 2. Normalize mobile
         String normalizedMobile = normalizeMobile(request.getMobile());
@@ -56,13 +64,16 @@ public class AuthService {
             );
         }
 
-        // 3. Find attendee by event and normalized mobile
+        // 3. Find attendee by event and normalized mobile (isolated indexed DB lookup)
+        long tDbLookup0 = System.nanoTime();
         AttendeeEntity attendee = findAttendeeByMobile(request.getEventId(), normalizedMobile)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No registration found for mobile number '" + request.getMobile() + "' in event '" + request.getEventId() + "'"
                 ));
+        long dbLookupMs = (System.nanoTime() - tDbLookup0) / 1_000_000;
 
         // 4. Resolve Exhibitor Scope if role is EXHIBITOR
+        long tExhibitor0 = System.nanoTime();
         String exhibitorId = null;
         String boothNumber = null;
 
@@ -76,8 +87,10 @@ public class AuthService {
                 }
             }
         }
+        long exhibitorMs = (System.nanoTime() - tExhibitor0) / 1_000_000;
 
         // 5. Generate Principal & JWT
+        long tJwt0 = System.nanoTime();
         EventSphereUserPrincipal principal = new EventSphereUserPrincipal(
                 attendee.getId(),
                 attendee.getEventId(),
@@ -89,6 +102,7 @@ public class AuthService {
         );
 
         String token = jwtService.generateToken(principal);
+        long jwtMs = (System.nanoTime() - tJwt0) / 1_000_000;
 
         // 6. Build response
         UserSummaryDto userDto = new UserSummaryDto(
@@ -107,6 +121,10 @@ public class AuthService {
                 attendee.isCheckedIn(),
                 boothNumber
         );
+
+        long totalMs = (System.nanoTime() - tTotal0) / 1_000_000;
+        log.info("AUTH_TRACE eventId={} maskedMobile={} totalMs={} rateLimitMs={} dbLookupMs={} exhibitorMs={} jwtMs={}",
+                request.getEventId(), maskMobile(normalizedMobile), totalMs, rateLimitMs, dbLookupMs, exhibitorMs, jwtMs);
 
         return new AccessResponse(token, "Bearer", jwtService.getExpirationSeconds(), userDto);
     }
@@ -147,14 +165,11 @@ public class AuthService {
     }
 
     private String normalizeMobile(String rawMobile) {
-        if (rawMobile == null) return "";
-        String digits = rawMobile.replaceAll("\\D", "");
-        if (digits.startsWith("91") && digits.length() > 10) {
-            digits = digits.substring(2);
-        }
-        if (digits.startsWith("0") && digits.length() > 10) {
-            digits = digits.substring(1);
-        }
-        return digits;
+        return MobileNormalizer.normalize(rawMobile);
+    }
+
+    private String maskMobile(String mobile) {
+        if (mobile == null || mobile.length() < 4) return "****";
+        return "****" + mobile.substring(mobile.length() - 4);
     }
 }

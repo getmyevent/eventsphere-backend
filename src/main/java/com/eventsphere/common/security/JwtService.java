@@ -19,6 +19,7 @@ public class JwtService {
 
     private final String secret;
     private final long expirationMs;
+    private final SecretKey signingKey;
 
     public JwtService(
             @Value("${eventsphere.jwt.secret}") String secret,
@@ -29,10 +30,11 @@ public class JwtService {
         }
         this.secret = secret.trim();
         this.expirationMs = expirationMs;
+        this.signingKey = Keys.hmacShaKeyFor(this.secret.getBytes(StandardCharsets.UTF_8));
     }
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        return this.signingKey;
     }
 
     public String generateToken(EventSphereUserPrincipal principal) {
