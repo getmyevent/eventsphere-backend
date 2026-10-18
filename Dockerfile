@@ -15,4 +15,4 @@ COPY --from=build /app/target/*.jar /app/app.jar
 
 EXPOSE 10000
 
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=65.0", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=65.0", "-Dspring.profiles.active=prod", "-jar", "/app/app.jar"]

@@ -2,7 +2,7 @@ spring:
   application:
     name: eventsphere-backend
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:prod}
   threads:
     virtual:
       enabled: true
