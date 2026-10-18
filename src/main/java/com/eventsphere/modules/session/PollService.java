@@ -54,9 +54,30 @@ public class PollService {
         return mapToDto(poll, currentAttendeeId);
     }
 
+    @Transactional(readOnly = true)
+    public PollDto getActivePoll(String currentAttendeeId) {
+        List<PollEntity> activePolls = pollRepository.findActivePolls();
+        if (!activePolls.isEmpty()) {
+            return mapToDto(activePolls.get(0), currentAttendeeId);
+        }
+        List<PollEntity> all = pollRepository.findAllOrderByCreatedAtDesc();
+        if (!all.isEmpty()) {
+            return mapToDto(all.get(0), currentAttendeeId);
+        }
+        throw new ResourceNotFoundException("No live polls available");
+    }
+
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribeToPoll(String pollId, String currentAttendeeId) {
         PollDto snapshot = getPollById(pollId, currentAttendeeId);
         return pollStreamService.subscribe(pollId, snapshot);
+    }
+
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribeToActivePoll(String currentAttendeeId) {
+        PollDto snapshot = null;
+        try {
+            snapshot = getActivePoll(currentAttendeeId);
+        } catch (ResourceNotFoundException ignored) {}
+        return pollStreamService.subscribeActive(snapshot);
     }
 
     @Transactional
@@ -72,15 +93,19 @@ public class PollService {
         PollOptionEntity option = pollOptionRepository.findByPollIdAndId(pollId, request.optionId())
                 .orElseThrow(() -> new BusinessException("Option '" + request.optionId() + "' does not belong to poll '" + pollId + "'"));
 
+        String effectiveAttendeeId = (attendeeId != null && !attendeeId.isBlank())
+                ? attendeeId
+                : "att-guest-" + Math.abs(request.optionId().hashCode());
+
         // Single vote per attendee per poll
-        Optional<PollVoteEntity> existingVote = pollVoteRepository.findByIdPollIdAndIdAttendeeId(pollId, attendeeId);
+        Optional<PollVoteEntity> existingVote = pollVoteRepository.findByIdPollIdAndIdAttendeeId(pollId, effectiveAttendeeId);
         if (existingVote.isPresent()) {
             throw new BusinessException("You have already voted in this poll");
         }
 
         // Record vote atomically
         try {
-            pollVoteRepository.saveAndFlush(new PollVoteEntity(pollId, attendeeId, option.getId()));
+            pollVoteRepository.saveAndFlush(new PollVoteEntity(pollId, effectiveAttendeeId, option.getId()));
         } catch (org.springframework.dao.DataIntegrityViolationException ex) {
             throw new BusinessException("You have already voted in this poll");
         }
@@ -160,6 +185,7 @@ public class PollService {
 
         PollDto dto = mapToDto(saved, false, null);
         pollStreamService.broadcast(pollId, dto);
+        pollStreamService.broadcastNewPoll(dto);
         return dto;
     }
 

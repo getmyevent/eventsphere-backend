@@ -57,7 +57,11 @@ public class SecurityConfig {
                                 "/actuator/info",
                                 "/api/v1/ping",
                                 "/api/v1/auth/access",
-                                "/api/v1/polls/*/stream"
+                                "/api/v1/polls/stream",
+                                "/api/v1/polls/*/stream",
+                                "/api/v1/polls/active",
+                                "/api/v1/polls/*",
+                                "/api/v1/polls/*/vote"
                         ).permitAll()
                         .requestMatchers("/api/v1/exhibitor/**").hasAnyRole("EXHIBITOR", "ORGANIZER")
                         .requestMatchers("/api/v1/organizer/**").hasRole("ORGANIZER")

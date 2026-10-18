@@ -4,9 +4,11 @@ import com.eventsphere.common.security.EventSphereUserPrincipal;
 import com.eventsphere.modules.session.dto.PollDto;
 import com.eventsphere.modules.session.dto.VotePollRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/v1/polls")
@@ -18,12 +20,22 @@ public class PollController {
         this.pollService = pollService;
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<PollDto> getActivePoll(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal
+    ) {
+        String attendeeId = principal != null ? principal.getAttendeeId() : null;
+        PollDto poll = pollService.getActivePoll(attendeeId);
+        return ResponseEntity.ok(poll);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PollDto> getPoll(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
             @PathVariable("id") String id
     ) {
-        PollDto poll = pollService.getPollById(id, principal.getAttendeeId());
+        String attendeeId = principal != null ? principal.getAttendeeId() : null;
+        PollDto poll = pollService.getPollById(id, attendeeId);
         return ResponseEntity.ok(poll);
     }
 
@@ -33,7 +45,8 @@ public class PollController {
             @PathVariable("id") String id,
             @Valid @RequestBody VotePollRequest request
     ) {
-        PollDto updated = pollService.vote(id, request, principal.getAttendeeId());
+        String attendeeId = principal != null ? principal.getAttendeeId() : null;
+        PollDto updated = pollService.vote(id, request, attendeeId);
         return ResponseEntity.ok(updated);
     }
 
@@ -42,12 +55,21 @@ public class PollController {
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
             @PathVariable("id") String id
     ) {
-        PollDto updated = pollService.resetVote(id, principal.getAttendeeId());
+        String attendeeId = principal != null ? principal.getAttendeeId() : null;
+        PollDto updated = pollService.resetVote(id, attendeeId);
         return ResponseEntity.ok(updated);
     }
 
-    @GetMapping(value = "/{id}/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
-    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamPoll(
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamActivePoll(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal
+    ) {
+        String attendeeId = principal != null ? principal.getAttendeeId() : null;
+        return pollService.subscribeToActivePoll(attendeeId);
+    }
+
+    @GetMapping(value = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamPoll(
             @AuthenticationPrincipal EventSphereUserPrincipal principal,
             @PathVariable("id") String id
     ) {
