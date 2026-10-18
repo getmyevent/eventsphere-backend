@@ -391,4 +391,59 @@ class OrganizerControllerIntegrationTest {
                         .header("Authorization", "Bearer " + tokenDelegate))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @DisplayName("Organizer can post a new live poll, view all polls, and toggle status")
+    void shouldCreateAndManagePollsAsOrganizer() throws Exception {
+        // 1. Create poll
+        com.eventsphere.modules.session.dto.CreatePollRequest createReq =
+                new com.eventsphere.modules.session.dto.CreatePollRequest(
+                        "sess-org-01",
+                        "Which packaging architecture will dominate by 2028?",
+                        List.of("CoWoS / 2.5D", "Foveros / 3D Stacking", "Monolithic 3D", "Standard MCM")
+                );
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/organizer/polls")
+                        .header("Authorization", "Bearer " + tokenOrganizer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.question").value("Which packaging architecture will dominate by 2028?"))
+                .andExpect(jsonPath("$.status").value("open"))
+                .andExpect(jsonPath("$.totalVotes").value(0))
+                .andExpect(jsonPath("$.options", hasSize(4)))
+                .andReturn();
+
+        String pollId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asText();
+
+        // 2. Organizer lists all polls
+        mockMvc.perform(get("/api/v1/organizer/polls")
+                        .header("Authorization", "Bearer " + tokenOrganizer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))));
+
+        // 3. Organizer toggles status to closed
+        com.eventsphere.modules.session.dto.UpdatePollStatusRequest statusReq =
+                new com.eventsphere.modules.session.dto.UpdatePollStatusRequest("closed");
+
+        mockMvc.perform(patch("/api/v1/organizer/polls/" + pollId + "/status")
+                        .header("Authorization", "Bearer " + tokenOrganizer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("closed"));
+
+        // 4. Client subscribes to SSE stream
+        mockMvc.perform(get("/api/v1/polls/" + pollId + "/stream")
+                        .header("Authorization", "Bearer " + tokenDelegate)
+                        .accept(MediaType.TEXT_EVENT_STREAM_VALUE))
+                .andExpect(status().isOk());
+
+        // 5. Delegate denied poll creation
+        mockMvc.perform(post("/api/v1/organizer/polls")
+                        .header("Authorization", "Bearer " + tokenDelegate)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createReq)))
+                .andExpect(status().isForbidden());
+    }
 }

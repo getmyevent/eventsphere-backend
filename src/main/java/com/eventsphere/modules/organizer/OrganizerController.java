@@ -12,6 +12,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.eventsphere.modules.session.PollService;
+import com.eventsphere.modules.session.dto.CreatePollRequest;
+import com.eventsphere.modules.session.dto.PollDto;
+import com.eventsphere.modules.session.dto.UpdatePollStatusRequest;
+
 import java.util.List;
 
 @RestController
@@ -20,9 +25,11 @@ import java.util.List;
 public class OrganizerController {
 
     private final OrganizerService organizerService;
+    private final PollService pollService;
 
-    public OrganizerController(OrganizerService organizerService) {
+    public OrganizerController(OrganizerService organizerService, PollService pollService) {
         this.organizerService = organizerService;
+        this.pollService = pollService;
     }
 
     @GetMapping("/metrics")
@@ -138,5 +145,30 @@ public class OrganizerController {
     public ResponseEntity<Void> deleteSession(@PathVariable("id") String id) {
         organizerService.deleteSession(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/polls")
+    public ResponseEntity<List<PollDto>> getPolls(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal
+    ) {
+        List<PollDto> polls = pollService.getAllPolls(principal.getAttendeeId());
+        return ResponseEntity.ok(polls);
+    }
+
+    @PostMapping("/polls")
+    public ResponseEntity<PollDto> createPoll(
+            @Valid @RequestBody CreatePollRequest request
+    ) {
+        PollDto created = pollService.createPoll(request);
+        return ResponseEntity.ok(created);
+    }
+
+    @PatchMapping("/polls/{id}/status")
+    public ResponseEntity<PollDto> updatePollStatus(
+            @PathVariable("id") String id,
+            @Valid @RequestBody UpdatePollStatusRequest request
+    ) {
+        PollDto updated = pollService.updatePollStatus(id, request.status());
+        return ResponseEntity.ok(updated);
     }
 }

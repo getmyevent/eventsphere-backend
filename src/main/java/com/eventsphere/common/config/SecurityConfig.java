@@ -56,7 +56,8 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/actuator/info",
                                 "/api/v1/ping",
-                                "/api/v1/auth/access"
+                                "/api/v1/auth/access",
+                                "/api/v1/polls/*/stream"
                         ).permitAll()
                         .requestMatchers("/api/v1/exhibitor/**").hasAnyRole("EXHIBITOR", "ORGANIZER")
                         .requestMatchers("/api/v1/organizer/**").hasRole("ORGANIZER")
@@ -75,7 +76,7 @@ public class SecurityConfig {
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Correlation-Id", "*"));
         config.setExposedHeaders(List.of("X-Correlation-Id"));
         config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
+        config.setMaxAge(86400L); // 24 hours preflight cache to eliminate OPTIONS storm
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

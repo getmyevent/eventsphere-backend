@@ -45,4 +45,23 @@ public class PollController {
         PollDto updated = pollService.resetVote(id, principal.getAttendeeId());
         return ResponseEntity.ok(updated);
     }
+
+    @GetMapping(value = "/{id}/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamPoll(
+            @AuthenticationPrincipal EventSphereUserPrincipal principal,
+            @PathVariable("id") String id
+    ) {
+        String attendeeId = principal != null ? principal.getAttendeeId() : null;
+        return pollService.subscribeToPoll(id, attendeeId);
+    }
+
+    @PatchMapping("/{id}/status")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<PollDto> updateStatus(
+            @PathVariable("id") String id,
+            @Valid @RequestBody com.eventsphere.modules.session.dto.UpdatePollStatusRequest request
+    ) {
+        PollDto updated = pollService.updatePollStatus(id, request.status());
+        return ResponseEntity.ok(updated);
+    }
 }

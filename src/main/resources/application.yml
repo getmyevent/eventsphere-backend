@@ -6,6 +6,8 @@ spring:
   threads:
     virtual:
       enabled: true
+  jpa:
+    open-in-view: false
   servlet:
     multipart:
       max-file-size: 5MB

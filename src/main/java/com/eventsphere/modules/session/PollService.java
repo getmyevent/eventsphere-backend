@@ -22,15 +22,21 @@ public class PollService {
     private final PollRepository pollRepository;
     private final PollOptionRepository pollOptionRepository;
     private final PollVoteRepository pollVoteRepository;
+    private final SessionRepository sessionRepository;
+    private final PollStreamService pollStreamService;
 
     public PollService(
             PollRepository pollRepository,
             PollOptionRepository pollOptionRepository,
-            PollVoteRepository pollVoteRepository
+            PollVoteRepository pollVoteRepository,
+            SessionRepository sessionRepository,
+            PollStreamService pollStreamService
     ) {
         this.pollRepository = pollRepository;
         this.pollOptionRepository = pollOptionRepository;
         this.pollVoteRepository = pollVoteRepository;
+        this.sessionRepository = sessionRepository;
+        this.pollStreamService = pollStreamService;
     }
 
     @Transactional(readOnly = true)
@@ -46,6 +52,11 @@ public class PollService {
         PollEntity poll = pollRepository.findById(pollId)
                 .orElseThrow(() -> new ResourceNotFoundException("Poll not found: " + pollId));
         return mapToDto(poll, currentAttendeeId);
+    }
+
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter subscribeToPoll(String pollId, String currentAttendeeId) {
+        PollDto snapshot = getPollById(pollId, currentAttendeeId);
+        return pollStreamService.subscribe(pollId, snapshot);
     }
 
     @Transactional
@@ -81,7 +92,13 @@ public class PollService {
         log.info("Attendee {} voted for option {} in poll {}", attendeeId, option.getId(), pollId);
 
         PollEntity updatedPoll = pollRepository.findById(pollId).orElse(poll);
-        return mapToDto(updatedPoll, attendeeId);
+        PollDto voterResponse = mapToDto(updatedPoll, true, option.getId());
+
+        // Instant fanout to all connected SSE clients with updated counts
+        PollDto publicBroadcast = mapToDto(updatedPoll, false, null);
+        pollStreamService.broadcast(pollId, publicBroadcast);
+
+        return voterResponse;
     }
 
     @Transactional
@@ -104,7 +121,72 @@ public class PollService {
         log.info("Attendee {} reset vote in poll {}", attendeeId, pollId);
 
         PollEntity updatedPoll = pollRepository.findById(pollId).orElse(poll);
-        return mapToDto(updatedPoll, attendeeId);
+        PollDto response = mapToDto(updatedPoll, false, null);
+
+        // Instant fanout to all connected SSE clients with updated counts
+        pollStreamService.broadcast(pollId, response);
+
+        return response;
+    }
+
+    @Transactional
+    public PollDto createPoll(com.eventsphere.modules.session.dto.CreatePollRequest request) {
+        if (!sessionRepository.existsById(request.sessionId())) {
+            throw new ResourceNotFoundException("Session not found: " + request.sessionId());
+        }
+
+        String pollId = "poll_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        PollEntity poll = new PollEntity();
+        poll.setId(pollId);
+        poll.setSessionId(request.sessionId());
+        poll.setQuestion(request.question().trim());
+        poll.setStatus("open");
+        poll.setTotalVotes(0);
+
+        List<PollOptionEntity> optionEntities = new java.util.ArrayList<>();
+        for (int i = 0; i < request.options().size(); i++) {
+            PollOptionEntity opt = new PollOptionEntity();
+            opt.setId("opt_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+            opt.setPoll(poll);
+            opt.setText(request.options().get(i).trim());
+            opt.setVotes(0);
+            opt.setSortOrder(i + 1);
+            optionEntities.add(opt);
+        }
+        poll.setOptions(optionEntities);
+
+        PollEntity saved = pollRepository.save(poll);
+        log.info("Organizer created new live poll {} for session {}", pollId, request.sessionId());
+
+        PollDto dto = mapToDto(saved, false, null);
+        pollStreamService.broadcast(pollId, dto);
+        return dto;
+    }
+
+    @Transactional
+    public PollDto updatePollStatus(String pollId, String status) {
+        PollEntity poll = pollRepository.findById(pollId)
+                .orElseThrow(() -> new ResourceNotFoundException("Poll not found: " + pollId));
+
+        String normalizedStatus = status.trim().toLowerCase();
+        if (!"open".equals(normalizedStatus) && !"closed".equals(normalizedStatus)) {
+            throw new BusinessException("Poll status must be either 'open' or 'closed'");
+        }
+
+        poll.setStatus(normalizedStatus);
+        PollEntity saved = pollRepository.save(poll);
+        log.info("Organizer updated poll {} status to {}", pollId, normalizedStatus);
+
+        PollDto dto = mapToDto(saved, false, null);
+        pollStreamService.broadcast(pollId, dto);
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PollDto> getAllPolls(String currentAttendeeId) {
+        return pollRepository.findAll().stream()
+                .map(p -> mapToDto(p, currentAttendeeId))
+                .toList();
     }
 
     private PollDto mapToDto(PollEntity poll, String currentAttendeeId) {
@@ -112,9 +194,10 @@ public class PollService {
                 ? pollVoteRepository.findByIdPollIdAndIdAttendeeId(poll.getId(), currentAttendeeId)
                 : Optional.empty();
 
-        boolean hasVoted = userVote.isPresent();
-        String votedOptionId = userVote.map(PollVoteEntity::getOptionId).orElse(null);
+        return mapToDto(poll, userVote.isPresent(), userVote.map(PollVoteEntity::getOptionId).orElse(null));
+    }
 
+    private PollDto mapToDto(PollEntity poll, boolean hasVoted, String votedOptionId) {
         List<PollOptionEntity> options = pollOptionRepository.findAllByPollIdOrderBySortOrderAsc(poll.getId());
 
         List<PollOptionDto> optionDtos = options.stream()

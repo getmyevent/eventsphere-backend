@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class RateLimiterService {
@@ -17,8 +18,8 @@ public class RateLimiterService {
     private final int maxRequestsPerMinutePerIp;
     private final int maxRequestsPerMinutePerMobile;
 
-    private final ConcurrentHashMap<String, Deque<Long>> ipRequestTimestamps = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Deque<Long>> mobileRequestTimestamps = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, SlidingWindowBucket> ipBuckets = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, SlidingWindowBucket> mobileBuckets = new ConcurrentHashMap<>();
 
     public RateLimiterService(
             @Value("${eventsphere.security.rate-limit.ip-per-minute:600}") int maxRequestsPerMinutePerIp,
@@ -30,39 +31,27 @@ public class RateLimiterService {
 
     public void checkRateLimit(String clientIp, String mobile) {
         long now = Instant.now().toEpochMilli();
-        long oneMinuteAgo = now - 60_000L;
+        long oneMinuteMs = 60_000L;
 
-        // 1. Check IP rate limit
+        // 1. Check IP rate limit (Virtual-thread safe via ReentrantLock)
         if (clientIp != null && !clientIp.isBlank()) {
-            Deque<Long> ipTimestamps = ipRequestTimestamps.computeIfAbsent(clientIp, k -> new ArrayDeque<>());
-            synchronized (ipTimestamps) {
-                while (!ipTimestamps.isEmpty() && ipTimestamps.peekFirst() < oneMinuteAgo) {
-                    ipTimestamps.pollFirst();
-                }
-                if (ipTimestamps.size() >= maxRequestsPerMinutePerIp) {
-                    throw new BusinessException(
-                            "Too many requests from this IP. Please wait a minute before trying again.",
-                            HttpStatus.TOO_MANY_REQUESTS
-                    );
-                }
-                ipTimestamps.addLast(now);
+            SlidingWindowBucket ipBucket = ipBuckets.computeIfAbsent(clientIp, k -> new SlidingWindowBucket());
+            if (!ipBucket.tryAcquire(now, oneMinuteMs, maxRequestsPerMinutePerIp)) {
+                throw new BusinessException(
+                        "Too many requests from this IP. Please wait a minute before trying again.",
+                        HttpStatus.TOO_MANY_REQUESTS
+                );
             }
         }
 
-        // 2. Check mobile number rate limit
+        // 2. Check mobile number rate limit (Virtual-thread safe via ReentrantLock)
         if (mobile != null && !mobile.isBlank()) {
-            Deque<Long> mobileTimestamps = mobileRequestTimestamps.computeIfAbsent(mobile, k -> new ArrayDeque<>());
-            synchronized (mobileTimestamps) {
-                while (!mobileTimestamps.isEmpty() && mobileTimestamps.peekFirst() < oneMinuteAgo) {
-                    mobileTimestamps.pollFirst();
-                }
-                if (mobileTimestamps.size() >= maxRequestsPerMinutePerMobile) {
-                    throw new BusinessException(
-                            "Too many access attempts for this mobile number. Please wait a minute before trying again.",
-                            HttpStatus.TOO_MANY_REQUESTS
-                    );
-                }
-                mobileTimestamps.addLast(now);
+            SlidingWindowBucket mobileBucket = mobileBuckets.computeIfAbsent(mobile, k -> new SlidingWindowBucket());
+            if (!mobileBucket.tryAcquire(now, oneMinuteMs, maxRequestsPerMinutePerMobile)) {
+                throw new BusinessException(
+                        "Too many access attempts for this mobile number. Please wait a minute before trying again.",
+                        HttpStatus.TOO_MANY_REQUESTS
+                );
             }
         }
     }
@@ -71,31 +60,52 @@ public class RateLimiterService {
     @Scheduled(fixedRate = 300_000L)
     public void cleanupStaleEntries() {
         long fiveMinutesAgo = Instant.now().toEpochMilli() - 300_000L;
-
-        ipRequestTimestamps.entrySet().removeIf(entry -> {
-            Deque<Long> deque = entry.getValue();
-            synchronized (deque) {
-                while (!deque.isEmpty() && deque.peekFirst() < fiveMinutesAgo) {
-                    deque.pollFirst();
-                }
-                return deque.isEmpty();
-            }
-        });
-
-        mobileRequestTimestamps.entrySet().removeIf(entry -> {
-            Deque<Long> deque = entry.getValue();
-            synchronized (deque) {
-                while (!deque.isEmpty() && deque.peekFirst() < fiveMinutesAgo) {
-                    deque.pollFirst();
-                }
-                return deque.isEmpty();
-            }
-        });
+        ipBuckets.entrySet().removeIf(entry -> entry.getValue().isStale(fiveMinutesAgo));
+        mobileBuckets.entrySet().removeIf(entry -> entry.getValue().isStale(fiveMinutesAgo));
     }
 
     // Test helper to reset limiter state
     public void reset() {
-        ipRequestTimestamps.clear();
-        mobileRequestTimestamps.clear();
+        ipBuckets.clear();
+        mobileBuckets.clear();
+    }
+
+    /**
+     * Sliding window bucket utilizing ReentrantLock.
+     * ReentrantLock integrates with Java 21 Virtual Threads (Loom),
+     * allowing carrier threads to yield without carrier thread pinning.
+     */
+    private static class SlidingWindowBucket {
+        private final Deque<Long> timestamps = new ArrayDeque<>();
+        private final ReentrantLock lock = new ReentrantLock();
+
+        public boolean tryAcquire(long now, long windowMs, int maxRequests) {
+            long threshold = now - windowMs;
+            lock.lock();
+            try {
+                while (!timestamps.isEmpty() && timestamps.peekFirst() < threshold) {
+                    timestamps.pollFirst();
+                }
+                if (timestamps.size() >= maxRequests) {
+                    return false;
+                }
+                timestamps.addLast(now);
+                return true;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public boolean isStale(long threshold) {
+            lock.lock();
+            try {
+                while (!timestamps.isEmpty() && timestamps.peekFirst() < threshold) {
+                    timestamps.pollFirst();
+                }
+                return timestamps.isEmpty();
+            } finally {
+                lock.unlock();
+            }
+        }
     }
 }
