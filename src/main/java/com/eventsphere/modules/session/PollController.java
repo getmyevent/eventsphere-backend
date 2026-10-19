@@ -86,4 +86,13 @@ public class PollController {
         PollDto updated = pollService.updatePollStatus(id, request.status());
         return ResponseEntity.ok(updated);
     }
+
+    @PostMapping("/{id}/activate")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<PollDto> activatePoll(
+            @PathVariable("id") String id
+    ) {
+        PollDto updated = pollService.activatePoll(id);
+        return ResponseEntity.ok(updated);
+    }
 }

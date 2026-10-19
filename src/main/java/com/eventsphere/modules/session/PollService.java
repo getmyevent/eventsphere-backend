@@ -60,6 +60,10 @@ public class PollService {
         if (!activePolls.isEmpty()) {
             return mapToDto(activePolls.get(0), currentAttendeeId);
         }
+        List<PollEntity> allOpen = pollRepository.findAllOpenOrderByCreatedAtDesc();
+        if (!allOpen.isEmpty()) {
+            return mapToDto(allOpen.get(0), currentAttendeeId);
+        }
         List<PollEntity> all = pollRepository.findAllOrderByCreatedAtDesc();
         if (!all.isEmpty()) {
             return mapToDto(all.get(0), currentAttendeeId);
@@ -160,12 +164,16 @@ public class PollService {
             throw new ResourceNotFoundException("Session not found: " + request.sessionId());
         }
 
+        // Deactivate previous active polls so new one becomes the active live poll
+        pollRepository.deactivateAllPolls();
+
         String pollId = "poll_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         PollEntity poll = new PollEntity();
         poll.setId(pollId);
         poll.setSessionId(request.sessionId());
         poll.setQuestion(request.question().trim());
         poll.setStatus("open");
+        poll.setActive(true);
         poll.setTotalVotes(0);
 
         List<PollOptionEntity> optionEntities = new java.util.ArrayList<>();
@@ -182,6 +190,23 @@ public class PollService {
 
         PollEntity saved = pollRepository.save(poll);
         log.info("Organizer created new live poll {} for session {}", pollId, request.sessionId());
+
+        PollDto dto = mapToDto(saved, false, null);
+        pollStreamService.broadcast(pollId, dto);
+        pollStreamService.broadcastNewPoll(dto);
+        return dto;
+    }
+
+    @Transactional
+    public PollDto activatePoll(String pollId) {
+        PollEntity poll = pollRepository.findById(pollId)
+                .orElseThrow(() -> new ResourceNotFoundException("Poll not found: " + pollId));
+
+        pollRepository.setActivePoll(pollId);
+        poll.setActive(true);
+        poll.setStatus("open");
+        PollEntity saved = pollRepository.save(poll);
+        log.info("Organizer activated live poll {}", pollId);
 
         PollDto dto = mapToDto(saved, false, null);
         pollStreamService.broadcast(pollId, dto);
@@ -210,7 +235,7 @@ public class PollService {
 
     @Transactional(readOnly = true)
     public List<PollDto> getAllPolls(String currentAttendeeId) {
-        return pollRepository.findAll().stream()
+        return pollRepository.findAllOrderByCreatedAtDesc().stream()
                 .map(p -> mapToDto(p, currentAttendeeId))
                 .toList();
     }
@@ -238,7 +263,8 @@ public class PollService {
                 poll.getTotalVotes(),
                 optionDtos,
                 hasVoted,
-                votedOptionId
+                votedOptionId,
+                poll.isActive()
         );
     }
 }

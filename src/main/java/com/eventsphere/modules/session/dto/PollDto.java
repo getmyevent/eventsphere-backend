@@ -11,5 +11,6 @@ public record PollDto(
         int totalVotes,
         List<PollOptionDto> options,
         @JsonProperty("hasVoted") boolean hasVoted,
-        String votedOptionId
+        String votedOptionId,
+        @JsonProperty("isActive") boolean isActive
 ) {}

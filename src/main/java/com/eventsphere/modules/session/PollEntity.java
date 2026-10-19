@@ -28,6 +28,9 @@ public class PollEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "is_active", nullable = false)
+    private boolean active = false;
+
     @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("sortOrder ASC")
     private List<PollOptionEntity> options = new ArrayList<>();
@@ -48,6 +51,9 @@ public class PollEntity {
 
     public int getTotalVotes() { return totalVotes; }
     public void setTotalVotes(int totalVotes) { this.totalVotes = totalVotes; }
+
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 
     public Instant getCreatedAt() { return createdAt; }
 

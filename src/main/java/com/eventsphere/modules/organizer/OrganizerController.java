@@ -171,4 +171,12 @@ public class OrganizerController {
         PollDto updated = pollService.updatePollStatus(id, request.status());
         return ResponseEntity.ok(updated);
     }
+
+    @PostMapping("/polls/{id}/activate")
+    public ResponseEntity<PollDto> activatePoll(
+            @PathVariable("id") String id
+    ) {
+        PollDto updated = pollService.activatePoll(id);
+        return ResponseEntity.ok(updated);
+    }
 }

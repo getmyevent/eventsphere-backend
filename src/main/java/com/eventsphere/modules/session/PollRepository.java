@@ -16,11 +16,22 @@ public interface PollRepository extends JpaRepository<PollEntity, String> {
 
     List<PollEntity> findAllBySessionIdOrderByCreatedAtDesc(String sessionId);
 
-    @Query("SELECT p FROM PollEntity p WHERE p.status = 'open' ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM PollEntity p WHERE p.active = true ORDER BY p.createdAt DESC")
     List<PollEntity> findActivePolls();
+
+    @Query("SELECT p FROM PollEntity p WHERE p.status = 'open' ORDER BY p.createdAt DESC")
+    List<PollEntity> findAllOpenOrderByCreatedAtDesc();
 
     @Query("SELECT p FROM PollEntity p ORDER BY p.createdAt DESC")
     List<PollEntity> findAllOrderByCreatedAtDesc();
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE PollEntity p SET p.active = CASE WHEN p.id = :id THEN true ELSE false END")
+    int setActivePoll(@Param("id") String id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE PollEntity p SET p.active = false")
+    int deactivateAllPolls();
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PollEntity p SET p.totalVotes = p.totalVotes + 1 WHERE p.id = :id")
