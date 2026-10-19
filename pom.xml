@@ -68,6 +68,11 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.cloud.sql</groupId>
+            <artifactId>mysql-socket-factory-connector-j-8</artifactId>
+            <version>1.30.0</version>
+        </dependency>
         <!-- JWT Token Support -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
