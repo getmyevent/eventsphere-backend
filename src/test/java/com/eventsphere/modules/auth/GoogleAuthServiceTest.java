@@ -85,16 +85,19 @@ class GoogleAuthServiceTest {
     }
 
     @Test
-    @DisplayName("Google Auth: Throws 404 DELEGATE_NOT_FOUND when email is not found in database")
-    void testGoogleAuthUnregisteredThrows404() {
+    @DisplayName("Google Auth: Returns isNewUser=true when email is not found in database")
+    void testGoogleAuthUnregisteredReturnsNewUser() {
         when(googleTokenVerifier.verify("unregistered-token"))
-                .thenReturn(new GooglePayload("unregistered@gmail.com", true, "Unregistered", null, "sub-2"));
+                .thenReturn(new GooglePayload("unregistered@gmail.com", true, "Unregistered User", null, "sub-2"));
         when(attendeeRepository.findFirstByEmailIgnoreCase("unregistered@gmail.com"))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> googleAuthService.authenticate(new GoogleAuthRequest("unregistered-token")))
-                .isInstanceOf(DelegateNotFoundException.class)
-                .hasMessageContaining("This Google account is not registered as an event delegate.");
+        AccessResponse response = googleAuthService.authenticate(new GoogleAuthRequest("unregistered-token"));
+
+        assertThat(response).isNotNull();
+        assertThat(response.isNewUser()).isTrue();
+        assertThat(response.getUser().getEmail()).isEqualTo("unregistered@gmail.com");
+        assertThat(response.getUser().getName()).isEqualTo("Unregistered User");
     }
 
     @Test

@@ -62,6 +62,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/google",
                                 "/api/auth/email/**",
                                 "/api/v1/auth/email/**",
+                                "/api/auth/register",
+                                "/api/v1/auth/register",
                                 "/api/v1/polls/stream",
                                 "/api/v1/polls/*/stream",
                                 "/api/v1/polls/active",

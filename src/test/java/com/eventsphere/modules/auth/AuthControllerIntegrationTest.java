@@ -343,8 +343,8 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Google OAuth: Unregistered email returns 404 DELEGATE_NOT_FOUND")
-    void testGoogleAuthUnregisteredEmailReturns404() throws Exception {
+    @DisplayName("Google OAuth: Unregistered email returns 200 with isNewUser=true")
+    void testGoogleAuthUnregisteredEmailReturnsNewUser() throws Exception {
         when(googleTokenVerifier.verify("unregistered-token"))
                 .thenReturn(new GooglePayload("unknown.delegate@gmail.com", true, "Unknown User", null, "sub-999"));
 
@@ -353,9 +353,10 @@ class AuthControllerIntegrationTest {
         mockMvc.perform(post("/api/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error", is("DELEGATE_NOT_FOUND")))
-                .andExpect(jsonPath("$.message", containsString("This Google account is not registered as an event delegate.")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.newUser", is(true)))
+                .andExpect(jsonPath("$.user.email", is("unknown.delegate@gmail.com")))
+                .andExpect(jsonPath("$.user.name", is("Unknown User")));
     }
 
     @Test
@@ -406,16 +407,40 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Email OTP: Request OTP for unregistered email returns 404 DELEGATE_NOT_FOUND")
-    void testEmailOtpRequestUnregisteredReturns404() throws Exception {
+    @DisplayName("Email OTP: Request OTP for unregistered email returns 200 and verify returns isNewUser=true")
+    void testEmailOtpRequestUnregisteredAllowedAndVerifyReturnsNewUser() throws Exception {
         RequestOtpRequest request = new RequestOtpRequest("notfound@domain.com");
 
         mockMvc.perform(post("/api/auth/email/request-otp")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error", is("DELEGATE_NOT_FOUND")))
-                .andExpect(jsonPath("$.message", containsString("This email is not registered as an event delegate.")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", containsString("OTP sent successfully")));
+
+        emailOtpService.seedOtpForTesting("notfound@domain.com", "654321");
+        VerifyOtpRequest verifyReq = new VerifyOtpRequest("notfound@domain.com", "654321");
+
+        mockMvc.perform(post("/api/auth/email/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(verifyReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.newUser", is(true)))
+                .andExpect(jsonPath("$.user.email", is("notfound@domain.com")));
+    }
+
+    @Test
+    @DisplayName("Register: Successfully creates new delegate attendee and returns JWT")
+    void testRegisterDelegateSuccess() throws Exception {
+        RegisterDelegateRequest request = new RegisterDelegateRequest("MPSS26", "newdelegate@domain.com", "New Delegate User");
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.user.email", is("newdelegate@domain.com")))
+                .andExpect(jsonPath("$.user.name", is("New Delegate User")))
+                .andExpect(jsonPath("$.user.role", is("ROLE_DELEGATE")));
     }
 
     @Test

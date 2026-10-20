@@ -69,9 +69,6 @@ class EmailOtpServiceTest {
     @Test
     @DisplayName("Request OTP dispatches email asynchronously and enters cooldown")
     void testRequestOtpSuccessAndCooldown() {
-        when(attendeeRepository.findFirstByEmailIgnoreCase("delegate@eventsphere.com"))
-                .thenReturn(Optional.of(delegate));
-
         emailOtpService.requestOtp("delegate@eventsphere.com");
 
         // Verify cooldown is triggered on immediate second request
@@ -81,14 +78,18 @@ class EmailOtpServiceTest {
     }
 
     @Test
-    @DisplayName("Request OTP fails with 404 DELEGATE_NOT_FOUND when email is unregistered")
-    void testRequestOtpUnregisteredEmailThrows404() {
+    @DisplayName("Verify OTP for unregistered email returns isNewUser=true")
+    void testVerifyOtpUnregisteredReturnsNewUser() {
         when(attendeeRepository.findFirstByEmailIgnoreCase("unregistered@domain.com"))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> emailOtpService.requestOtp("unregistered@domain.com"))
-                .isInstanceOf(DelegateNotFoundException.class)
-                .hasMessageContaining("This email is not registered as an event delegate.");
+        emailOtpService.seedOtpForTesting("unregistered@domain.com", "123456");
+
+        AccessResponse response = emailOtpService.verifyOtp("unregistered@domain.com", "123456");
+
+        assertThat(response).isNotNull();
+        assertThat(response.isNewUser()).isTrue();
+        assertThat(response.getUser().getEmail()).isEqualTo("unregistered@domain.com");
     }
 
     @Test

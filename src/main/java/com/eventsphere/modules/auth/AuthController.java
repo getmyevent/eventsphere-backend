@@ -49,6 +49,12 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<AccessResponse> register(@Valid @RequestBody RegisterDelegateRequest request) {
+        AccessResponse response = emailOtpService.registerDelegate(request.getEventId(), request.getEmail(), request.getName());
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/access")
     public ResponseEntity<AccessResponse> access(
             @Valid @RequestBody AccessRequest request,

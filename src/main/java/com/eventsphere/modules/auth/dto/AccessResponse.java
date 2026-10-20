@@ -6,6 +6,7 @@ public class AccessResponse {
     private String tokenType = "Bearer";
     private long expiresIn;
     private UserSummaryDto user;
+    private boolean isNewUser = false;
 
     public AccessResponse() {}
 
@@ -14,6 +15,15 @@ public class AccessResponse {
         this.tokenType = tokenType;
         this.expiresIn = expiresIn;
         this.user = user;
+        this.isNewUser = false;
+    }
+
+    public AccessResponse(String token, String tokenType, long expiresIn, UserSummaryDto user, boolean isNewUser) {
+        this.token = token;
+        this.tokenType = tokenType;
+        this.expiresIn = expiresIn;
+        this.user = user;
+        this.isNewUser = isNewUser;
     }
 
     public String getToken() { return token; }
@@ -27,4 +37,7 @@ public class AccessResponse {
 
     public UserSummaryDto getUser() { return user; }
     public void setUser(UserSummaryDto user) { this.user = user; }
+
+    public boolean isNewUser() { return isNewUser; }
+    public void setNewUser(boolean newUser) { isNewUser = newUser; }
 }

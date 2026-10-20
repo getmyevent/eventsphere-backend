@@ -7,6 +7,7 @@ import com.eventsphere.common.security.EventSphereUserPrincipal;
 import com.eventsphere.common.security.JwtService;
 import com.eventsphere.modules.attendee.AttendeeEntity;
 import com.eventsphere.modules.attendee.AttendeeRepository;
+import com.eventsphere.modules.attendee.model.AttendeeCategory;
 import com.eventsphere.modules.attendee.model.UserRole;
 import com.eventsphere.modules.auth.dto.AccessResponse;
 import com.eventsphere.modules.auth.dto.UserSummaryDto;
@@ -28,7 +29,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -100,18 +103,14 @@ public class EmailOtpService {
             throw new OtpCooldownException("An OTP was recently requested. Please wait 45 seconds before requesting another.");
         }
 
-        // 2. Delegate lookup check
-        AttendeeEntity attendee = attendeeRepository.findFirstByEmailIgnoreCase(normalizedEmail)
-                .orElseThrow(() -> new DelegateNotFoundException("This email is not registered as an event delegate."));
-
-        // 3. Generate 6-digit numeric OTP
+        // 2. Generate 6-digit numeric OTP
         String otp = generateOtpCode();
 
-        // 4. Store in TTL caches
+        // 3. Store in TTL caches
         otpCache.put(normalizedEmail, new OtpEntry(otp));
         cooldownCache.put(normalizedEmail, Instant.now());
 
-        // 5. Asynchronous non-blocking email dispatch
+        // 4. Asynchronous non-blocking email dispatch
         CompletableFuture.runAsync(() -> {
             try {
                 emailService.sendOtp(normalizedEmail, otp);
@@ -120,7 +119,7 @@ public class EmailOtpService {
             }
         });
 
-        log.info("OTP requested for delegateId={} email={}", attendee.getId(), maskEmail(normalizedEmail));
+        log.info("OTP requested for email={}", maskEmail(normalizedEmail));
     }
 
     public AccessResponse verifyOtp(String rawEmail, String otp) {
@@ -158,9 +157,47 @@ public class EmailOtpService {
         // Success: atomically invalidate OTP key from memory
         otpCache.invalidate(normalizedEmail);
 
-        // Query delegate and issue session JWT
+        // Check if delegate already exists
+        Optional<AttendeeEntity> attendeeOpt = attendeeRepository.findFirstByEmailIgnoreCase(normalizedEmail);
+        if (attendeeOpt.isEmpty()) {
+            log.info("OTP verified for unregistered email={}. Requiring profile creation.", maskEmail(normalizedEmail));
+            AccessResponse response = new AccessResponse();
+            response.setNewUser(true);
+            UserSummaryDto userSummary = new UserSummaryDto();
+            userSummary.setEmail(normalizedEmail);
+            userSummary.setEventId("MPSS26");
+            response.setUser(userSummary);
+            return response;
+        }
+
+        return buildAccessResponse(attendeeOpt.get());
+    }
+
+    public AccessResponse registerDelegate(String eventId, String rawEmail, String rawName) {
+        String normalizedEmail = normalizeEmail(rawEmail);
+        String trimmedName = rawName != null ? rawName.trim() : "Delegate";
+        String normalizedEventId = (eventId != null && !eventId.isBlank()) ? eventId.trim().toUpperCase(Locale.ROOT) : "MPSS26";
+
         AttendeeEntity attendee = attendeeRepository.findFirstByEmailIgnoreCase(normalizedEmail)
-                .orElseThrow(() -> new DelegateNotFoundException("This email is not registered as an event delegate."));
+                .orElseGet(() -> {
+                    AttendeeEntity newAttendee = new AttendeeEntity();
+                    newAttendee.setId("att-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
+                    newAttendee.setEventId(normalizedEventId);
+                    newAttendee.setRegistrationId("#REG-" + normalizedEventId + "-" + ThreadLocalRandom.current().nextInt(1000, 9999));
+                    newAttendee.setName(trimmedName);
+                    newAttendee.setEmail(normalizedEmail);
+                    newAttendee.setCategory(AttendeeCategory.DELEGATE);
+                    newAttendee.setAuthRole(UserRole.ROLE_DELEGATE);
+                    newAttendee.setTicketType("Delegate");
+                    newAttendee.setDesignation("Delegate");
+                    newAttendee.setCompany("Summit Attendee");
+                    newAttendee.setCheckedIn(true);
+                    newAttendee.setCheckedInAt(Instant.now());
+                    newAttendee.setRelevanceScore(100);
+                    AttendeeEntity saved = attendeeRepository.save(newAttendee);
+                    log.info("Created new delegate attendeeId={} email={} name={}", saved.getId(), normalizedEmail, trimmedName);
+                    return saved;
+                });
 
         return buildAccessResponse(attendee);
     }
