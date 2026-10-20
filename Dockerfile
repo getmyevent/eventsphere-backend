@@ -13,6 +13,6 @@ WORKDIR /app
 
 COPY --from=build /app/target/*.jar /app/app.jar
 
-EXPOSE 10000
+EXPOSE 8080 10000
 
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=65.0", "-Dspring.profiles.active=prod", "-jar", "/app/app.jar"]
