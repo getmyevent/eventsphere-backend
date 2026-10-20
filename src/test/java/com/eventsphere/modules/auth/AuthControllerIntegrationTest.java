@@ -1,11 +1,12 @@
 package com.eventsphere.modules.auth;
 
+import com.eventsphere.common.error.BusinessException;
 import com.eventsphere.common.security.RateLimiterService;
 import com.eventsphere.modules.attendee.AttendeeEntity;
 import com.eventsphere.modules.attendee.AttendeeRepository;
 import com.eventsphere.modules.attendee.model.AttendeeCategory;
 import com.eventsphere.modules.attendee.model.UserRole;
-import com.eventsphere.modules.auth.dto.AccessRequest;
+import com.eventsphere.modules.auth.dto.*;
 import com.eventsphere.modules.event.EventEntity;
 import com.eventsphere.modules.event.EventRepository;
 import com.eventsphere.modules.exhibitor.ExhibitorEntity;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,6 +32,8 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -61,11 +66,19 @@ class AuthControllerIntegrationTest {
     @Autowired
     private RateLimiterService rateLimiterService;
 
+    @MockBean
+    private GoogleTokenVerifier googleTokenVerifier;
+
+    @Autowired
+    private EmailOtpService emailOtpService;
+
     private static final String EVENT_ID = "MPSS26";
 
     @BeforeEach
     void setUp() {
         rateLimiterService.reset();
+        emailOtpService.clearCooldown("hari@eventsphere.com");
+        emailOtpService.clearOtp("hari@eventsphere.com");
 
         // 1. Seed Event
         EventEntity event = new EventEntity(
@@ -307,6 +320,171 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.status", is(429)))
                 .andExpect(jsonPath("$.message", containsString("Too many access attempts")));
+    }
+
+    @Test
+    @DisplayName("Google OAuth: Successfully authenticate registered delegate via Google ID token")
+    void testGoogleAuthSuccess() throws Exception {
+        when(googleTokenVerifier.verify("valid-google-id-token"))
+                .thenReturn(new GooglePayload("hari@eventsphere.com", true, "Hari Gupta", "https://avatar.png", "sub-12345"));
+
+        GoogleAuthRequest request = new GoogleAuthRequest("valid-google-id-token");
+
+        mockMvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", notNullValue()))
+                .andExpect(jsonPath("$.tokenType", is("Bearer")))
+                .andExpect(jsonPath("$.user.id", is("att-delegate-1")))
+                .andExpect(jsonPath("$.user.email", is("hari@eventsphere.com")))
+                .andExpect(jsonPath("$.user.name", is("Hari Gupta")))
+                .andExpect(jsonPath("$.user.role", is("ROLE_DELEGATE")));
+    }
+
+    @Test
+    @DisplayName("Google OAuth: Unregistered email returns 404 DELEGATE_NOT_FOUND")
+    void testGoogleAuthUnregisteredEmailReturns404() throws Exception {
+        when(googleTokenVerifier.verify("unregistered-token"))
+                .thenReturn(new GooglePayload("unknown.delegate@gmail.com", true, "Unknown User", null, "sub-999"));
+
+        GoogleAuthRequest request = new GoogleAuthRequest("unregistered-token");
+
+        mockMvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("DELEGATE_NOT_FOUND")))
+                .andExpect(jsonPath("$.message", containsString("This Google account is not registered as an event delegate.")));
+    }
+
+    @Test
+    @DisplayName("Google OAuth: Invalid token signature returns 401 Unauthorized")
+    void testGoogleAuthInvalidTokenSignatureReturns401() throws Exception {
+        when(googleTokenVerifier.verify("invalid-token"))
+                .thenThrow(new BusinessException("Invalid or expired Google ID token", HttpStatus.UNAUTHORIZED));
+
+        GoogleAuthRequest request = new GoogleAuthRequest("invalid-token");
+
+        mockMvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message", containsString("Invalid or expired Google ID token")));
+    }
+
+    @Test
+    @DisplayName("Email OTP: Successfully request OTP for registered delegate")
+    void testEmailOtpRequestSuccess() throws Exception {
+        RequestOtpRequest request = new RequestOtpRequest("hari@eventsphere.com");
+
+        mockMvc.perform(post("/api/auth/email/request-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message", containsString("OTP sent successfully")));
+    }
+
+    @Test
+    @DisplayName("Email OTP: Second OTP request within 45s cooldown returns 429 Too Many Requests")
+    void testEmailOtpCooldownReturns429() throws Exception {
+        RequestOtpRequest request = new RequestOtpRequest("hari@eventsphere.com");
+
+        // First request: OK
+        mockMvc.perform(post("/api/auth/email/request-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        // Second request immediately: 429 RATE_LIMITED
+        mockMvc.perform(post("/api/auth/email/request-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.error", is("RATE_LIMITED")))
+                .andExpect(jsonPath("$.message", containsString("45 seconds")));
+    }
+
+    @Test
+    @DisplayName("Email OTP: Request OTP for unregistered email returns 404 DELEGATE_NOT_FOUND")
+    void testEmailOtpRequestUnregisteredReturns404() throws Exception {
+        RequestOtpRequest request = new RequestOtpRequest("notfound@domain.com");
+
+        mockMvc.perform(post("/api/auth/email/request-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error", is("DELEGATE_NOT_FOUND")))
+                .andExpect(jsonPath("$.message", containsString("This email is not registered as an event delegate.")));
+    }
+
+    @Test
+    @DisplayName("Email OTP: Verify valid OTP issues JWT and invalidates OTP key from memory")
+    void testEmailOtpVerifySuccessAndAtomicInvalidation() throws Exception {
+        emailOtpService.seedOtpForTesting("hari@eventsphere.com", "849201");
+
+        VerifyOtpRequest request = new VerifyOtpRequest("hari@eventsphere.com", "849201");
+
+        // 1. Verify OTP -> 200 OK + JWT
+        mockMvc.perform(post("/api/auth/email/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", notNullValue()))
+                .andExpect(jsonPath("$.user.id", is("att-delegate-1")))
+                .andExpect(jsonPath("$.user.email", is("hari@eventsphere.com")));
+
+        // 2. Replay attempt -> 400 Bad Request (OTP was atomically invalidated on success!)
+        mockMvc.perform(post("/api/auth/email/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("OTP is invalid or has expired")));
+    }
+
+    @Test
+    @DisplayName("Email OTP: Verify with wrong code returns 400 with attempts remaining")
+    void testEmailOtpVerifyWrongCode() throws Exception {
+        emailOtpService.seedOtpForTesting("hari@eventsphere.com", "849201");
+
+        VerifyOtpRequest request = new VerifyOtpRequest("hari@eventsphere.com", "111111");
+
+        mockMvc.perform(post("/api/auth/email/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("Invalid OTP code. 4 attempts remaining.")));
+    }
+
+    @Test
+    @DisplayName("Email OTP: Brute-force protection invalidates OTP after 5 failed attempts")
+    void testEmailOtpBruteForceProtection() throws Exception {
+        emailOtpService.seedOtpForTesting("hari@eventsphere.com", "849201");
+
+        VerifyOtpRequest wrongRequest = new VerifyOtpRequest("hari@eventsphere.com", "000000");
+
+        // 4 failed attempts
+        for (int i = 0; i < 4; i++) {
+            mockMvc.perform(post("/api/auth/email/verify-otp")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(wrongRequest)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        // 5th failed attempt: OTP invalidated with TOO_MANY_REQUESTS
+        mockMvc.perform(post("/api/auth/email/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(wrongRequest)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message", containsString("Maximum verification attempts exceeded")));
+
+        // 6th attempt (even with CORRECT code): rejected because OTP was invalidated
+        VerifyOtpRequest correctRequest = new VerifyOtpRequest("hari@eventsphere.com", "849201");
+        mockMvc.perform(post("/api/auth/email/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(correctRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("OTP is invalid or has expired")));
     }
 
     private String obtainToken(String mobile) throws Exception {

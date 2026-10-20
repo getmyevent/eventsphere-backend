@@ -21,6 +21,24 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(DelegateNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleDelegateNotFoundException(DelegateNotFoundException ex) {
+        log.warn("Delegate not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "DELEGATE_NOT_FOUND",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(OtpCooldownException.class)
+    public ResponseEntity<Map<String, Object>> handleOtpCooldownException(OtpCooldownException ex) {
+        log.warn("OTP cooldown active: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                "error", "RATE_LIMITED",
+                "message", ex.getMessage()
+        ));
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex, HttpServletRequest request) {
         String correlationId = getCorrelationId(request);

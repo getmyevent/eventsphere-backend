@@ -34,6 +34,14 @@ eventsphere:
   jwt:
     secret: "${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}" # 256-bit dev secret
     expiration-ms: ${JWT_EXPIRATION_MS:259200000} # 72 hours (3 days)
+  auth:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:eventsphere-dev-client-id.apps.googleusercontent.com}
+  email:
+    provider: ${EMAIL_PROVIDER:mock}
+    from: ${EMAIL_FROM:EventSphere <login@eventsphere.com>}
+    resend:
+      api-key: ${RESEND_API_KEY:}
   security:
     cors:
       allowed-origins:

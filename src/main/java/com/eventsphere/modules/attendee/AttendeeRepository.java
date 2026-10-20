@@ -15,6 +15,12 @@ public interface AttendeeRepository extends JpaRepository<AttendeeEntity, String
 
     Optional<AttendeeEntity> findByEventIdAndNormalizedMobile(String eventId, String normalizedMobile);
 
+    Optional<AttendeeEntity> findFirstByEmailIgnoreCase(String email);
+
+    Optional<AttendeeEntity> findByEventIdAndEmailIgnoreCase(String eventId, String email);
+
+    boolean existsByEmailIgnoreCase(String email);
+
     Optional<AttendeeEntity> findByEventIdAndRegistrationId(String eventId, String registrationId);
 
     Optional<AttendeeEntity> findByIdAndEventId(String id, String eventId);
