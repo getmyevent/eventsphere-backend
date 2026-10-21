@@ -43,8 +43,17 @@ public class GoogleAuthService {
         // 3. Database match by indexed email
         Optional<AttendeeEntity> attendeeOpt = attendeeRepository.findFirstByEmailIgnoreCase(normalizedEmail);
         if (attendeeOpt.isEmpty()) {
-            if (request.getName() != null && !request.getName().isBlank()) {
-                return emailOtpService.registerDelegate(request.getEventId(), normalizedEmail, request.getName());
+            String candidateName = (request.getName() != null && !request.getName().isBlank())
+                    ? request.getName().trim()
+                    : (payload.name() != null && !payload.name().isBlank() ? payload.name().trim() : null);
+
+            if (candidateName != null && !candidateName.isBlank()) {
+                String eventId = (request.getEventId() != null && !request.getEventId().isBlank())
+                        ? request.getEventId()
+                        : "MPSS26";
+                log.info("Auto-registering Google authenticated delegate: email={}, name={}, eventId={}",
+                        normalizedEmail, candidateName, eventId);
+                return emailOtpService.registerDelegate(eventId, normalizedEmail, candidateName);
             }
             log.info("Google authentication for unregistered email={}. Requiring profile creation.", normalizedEmail);
             AccessResponse response = new AccessResponse();

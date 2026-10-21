@@ -75,7 +75,7 @@ eventsphere:
     expiration-ms: ${JWT_EXPIRATION_MS:259200000}
   security:
     cors:
-      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,https://mpss26-frontend.vercel.app,https://mpss26.eventsphere.com}
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,https://mpss26-frontend.vercel.app,https://mpss26.eventsphere.com,https://getmyevent.in,https://www.getmyevent.in}
     rate-limit:
       ip-per-minute: ${RATE_LIMIT_IP:600}
       mobile-per-minute: ${RATE_LIMIT_MOBILE:10}
